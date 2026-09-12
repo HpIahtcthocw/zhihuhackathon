@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>岔路口 · 知乎围炉 v0.3</title>
+<style>
+  :root{
+    --paper:#f7f2e9; --paper-2:#efe8da; --card:#fffdf8;
+    --ink:#211d16; --ink-2:#6f6759; --ink-3:#9b9284;
+    --line:rgba(33,29,22,.12); --line-2:rgba(33,29,22,.07);
+    --red:#b44632; --blue:#315b73; --olive:#66705a; --amber:#b6843d;
+    --zh-blue:#2f6ba3;
+    --serif:"Noto Serif SC","Source Han Serif SC","STZhongsong","STSong","SimSun",serif;
+    --sans:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",Consolas,monospace;
+    --r:14px;
+    --shadow:0 1px 2px rgba(33,29,22,.05),0 4px 14px rgba(33,29,22,.06);
+    --shadow-lift:0 2px 4px rgba(33,29,22,.06),0 12px 32px rgba(33,29,22,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--paper);color:var(--ink);font-family:var(--sans);
+    min-height:100vh;padding-bottom:80px;
+    background-image:radial-gradient(1200px 500px at 50% -10%,rgba(182,132,61,.08),transparent 60%);
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:0 clamp(16px,4vw,28px)}
+  button{font-family:var(--sans);cursor:pointer}
+  .hide{display:none!important}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.28em;color:var(--ink-3);text-transform:uppercase}
+
+  /* ── 顶栏 ── */
+  .topbar{position:sticky;top:0;z-index:40;
+    background:rgba(247,242,233,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line-2)}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+  .logo{font-family:var(--serif);font-weight:700;font-size:17px;letter-spacing:.04em}
+  .logo i{font-style:normal;color:var(--red)}
+  .logo .v{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-weight:400;margin-left:8px;letter-spacing:.1em}
+  .mute{background:none;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:12px;color:var(--ink-2)}
+  .mute:hover{border-color:var(--ink-2)}
+
+  /* ── HUD ── */
+  .hud{position:sticky;top:56px;z-index:39;
+    background:rgba(247,242,233,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line-2);padding:10px 0 12px}
+  .hud .wrap{display:flex;flex-direction:column;gap:9px}
+  .scale{display:flex;align-items:center;gap:12px;font-size:11px}
+  .scale .lab{font-family:var(--serif);font-weight:700;white-space:nowrap}
+  .scale .lab.r{color:var(--red)} .scale .lab.b{color:var(--blue)}
+  .scale-track{flex:1;height:8px;border-radius:4px;position:relative;
+    background:linear-gradient(90deg,rgba(180,70,50,.22),rgba(49,91,115,.22))}
+  .scale-track::after{content:"";position:absolute;left:50%;top:-3px;width:1px;height:14px;background:var(--line)}
+  .scale-needle{position:absolute;top:-4px;width:4px;height:16px;background:var(--ink);border-radius:2px;
+    left:50%;transition:left .5s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .meters{display:flex;gap:clamp(8px,2vw,16px)}
+  .meter{flex:1;min-width:0}
+  .meter .lab{font-size:10.5px;color:var(--ink-2);margin-bottom:4px;white-space:nowrap}
+  .meter .bar{height:5px;background:var(--line-2);border-radius:3px;overflow:hidden}
+  .meter .fill{height:100%;border-radius:3px;background:var(--olive);width:60%;transition:width .6s ease,background .4s}
+  .meter.low .fill{background:var(--red);animation:blink 1s infinite}
+  @keyframes blink{50%{opacity:.45}}
+  .round-ind{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.12em;text-align:right}
+
+  /* ── 英雄区 ── */
+  .hero{margin:clamp(20px,4vw,36px) 0 6px;border-radius:18px;overflow:hidden;position:relative;
+    background:linear-gradient(150deg,#2a251c,#3d3222 55%,#57431f);
+    color:#f3ead9;padding:clamp(28px,6vw,48px) clamp(22px,5vw,44px);
+    box-shadow:var(--shadow)}
+  .hero::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(600px 200px at 20% 110%,rgba(255,166,66,.22),transparent 60%),
+               radial-gradient(500px 220px at 85% -10%,rgba(49,91,115,.35),transparent 60%)}
+  .hero>*{position:relative}
+  .hero .kicker{color:rgba(243,234,217,.55)}
+  .hero h1{font-family:var(--serif);font-size:clamp(24px,5.4vw,38px);line-height:1.45;font-weight:700;
+    margin:14px 0 12px}
+  .hero h1 em{font-style:normal;color:#f0b969}
+  .hero p{font-size:clamp(13px,2.6vw,14.5px);line-height:1.9;color:rgba(243,234,217,.75);max-width:34em}
+
+  /* ── 热榜 ── */
+  .hotbox{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r);
+    margin-top:clamp(18px,3.5vw,28px);overflow:hidden;box-shadow:var(--shadow)}
+  .hotbox .hd{padding:20px 24px 6px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .hotbox .hd .t{font-family:var(--serif);font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px}
+  .hotbox .hd .t::before{content:"";width:5px;height:18px;background:var(--red);border-radius:3px}
+  .hot-item{display:flex;gap:16px;padding:18px 24px;border-top:1px solid var(--line-2);
+    cursor:pointer;transition:background .18s,transform .18s;align-items:flex-start}
+  .hot-item:first-of-type{border-top:none}
+  .hot-item:hover{background:rgba(182,132,61,.06)}
+  .hot-item .rank{font-family:var(--serif);font-style:italic;font-weight:800;font-size:22px;
+    width:30px;flex:0 0 30px;text-align:center;line-height:1.3}
+  .rank.r1{color:var(--red)} .rank.r2{color:var(--amber)} .rank.r3{color:var(--ink-2)}
+  .hot-item .t{font-family:var(--serif);font-size:clamp(15px,3vw,16.5px);line-height:1.65;font-weight:700}
+  .hot-item .meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:6px;letter-spacing:.05em}
+  .hot-item .meta b{color:var(--red);font-weight:600}
+
+  /* 自定义输入 */
+  .custom{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r);
+    margin-top:16px;padding:22px 24px;box-shadow:var(--shadow)}
+  .custom h3{font-family:var(--serif);font-size:16px;margin-bottom:4px}
+  .custom .sub{font-size:12px;color:var(--ink-3);margin-bottom:12px}
+  .custom textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:14px;
+    font-size:15px;font-family:var(--serif);resize:vertical;min-height:64px;line-height:1.8;
+    background:var(--paper);color:var(--ink)}
+  .custom textarea:focus{outline:2px solid rgba(49,91,115,.35);border-color:var(--blue)}
+  .custom .go{margin-top:12px;background:var(--ink);color:var(--paper);border:none;border-radius:10px;
+    padding:13px 28px;font-size:14.5px;font-weight:700;transition:transform .15s,opacity .2s}
+  .custom .go:hover:not(:disabled){transform:translateY(-1px)}
+  .custom .go:disabled{opacity:.35;cursor:not-allowed}
+  .foot-note{margin:22px 4px 10px;font-size:11.5px;color:var(--ink-3);line-height:2}
+  .foot-note .src{color:var(--blue)}
+
+  /* ── 约束配置 ── */
+  .setup{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r);
+    margin-top:clamp(18px,3.5vw,28px);padding:clamp(22px,5vw,34px);box-shadow:var(--shadow)}
+  .setup h2{font-family:var(--serif);font-size:clamp(19px,4vw,23px);margin:8px 0 6px}
+  .setup .sub{font-size:13px;color:var(--ink-2);margin-bottom:24px;line-height:1.9}
+  .cgroup{margin-bottom:22px}
+  .cgroup .gl{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .cgroup .gl::after{content:"";flex:1;height:1px;background:var(--line-2)}
+  .seg{display:flex;gap:10px}
+  .seg button{flex:1;border:1px solid var(--line);background:var(--paper);border-radius:10px;
+    padding:12px 6px;font-size:13px;color:var(--ink);transition:all .15s;line-height:1.5}
+  .seg button small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:3px}
+  .seg button:hover{border-color:var(--ink-2)}
+  .seg button.on{border-color:var(--ink);background:var(--ink);color:var(--paper);font-weight:700}
+  .seg button.on small{color:rgba(247,242,233,.6)}
+  .setup .start{width:100%;background:var(--red);color:#fff;border:none;border-radius:12px;
+    padding:16px;font-size:16px;font-weight:800;margin-top:10px;letter-spacing:.2em;
+    transition:transform .15s,box-shadow .2s}
+  .setup .start:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(180,70,50,.3)}
+
+  /* ── 问题页 ── */
+  .qcard{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r);
+    margin-top:clamp(18px,3.5vw,26px);padding:clamp(22px,5vw,32px);box-shadow:var(--shadow)}
+  .qcard .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+    color:var(--blue);background:rgba(49,91,115,.08);border:1px solid rgba(49,91,115,.2);
+    border-radius:20px;padding:4px 12px;margin-bottom:14px}
+  .qcard h1{font-family:var(--serif);font-size:clamp(20px,4.6vw,27px);line-height:1.6;margin-bottom:14px}
+  .qcard .meta{font-family:var(--mono);font-size:11px;color:var(--ink-3);display:flex;gap:6px 18px;flex-wrap:wrap;margin-bottom:16px}
+  .qcard .meta b{color:var(--ink-2);font-weight:600}
+  .qcard .desc{font-family:var(--serif);font-size:14px;line-height:2;color:var(--ink-2);
+    border-left:3px solid var(--amber);padding:4px 0 4px 16px;background:rgba(182,132,61,.05);border-radius:0 8px 8px 0}
+
+  /* 回答卡 */
+  .answers-label{margin:clamp(22px,4vw,30px) 0 14px;display:flex;align-items:center;gap:12px}
+  .answers-label .kicker{white-space:nowrap}
+  .answers-label::after{content:"";flex:1;height:1px;background:var(--line)}
+  .answers{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:760px){.answers{grid-template-columns:1fr 1fr}}
+  .acard{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r);
+    padding:22px 22px 16px;box-shadow:var(--shadow);animation:cardIn .45s ease both;
+    display:flex;flex-direction:column}
+  @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .acard .ahd{display:flex;align-items:center;gap:12px}
+  .ava{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-weight:700;font-size:18px;flex:0 0 42px;box-shadow:inset 0 -2px 6px rgba(0,0,0,.18)}
+  .acard .an{font-size:14.5px;font-weight:700}
+  .acard .ab{font-size:11px;color:var(--ink-3);margin-top:3px}
+  .acard .votes{margin-left:auto;text-align:right}
+  .acard .votes .v{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--zh-blue);transition:color .3s}
+  .acard .votes .v.tick{animation:vtick .6s ease}
+  @keyframes vtick{30%{transform:scale(1.25);color:var(--olive)}}
+  .acard .votes .vl{font-size:9.5px;color:var(--ink-3)}
+  .acard .atext{font-family:var(--serif);font-size:14.5px;line-height:2;margin-top:14px;flex:1}
+  .acard .atext b{font-weight:700}
+  .acard .cmt{margin-top:12px;font-size:11.5px;color:var(--ink-2);line-height:1.9;
+    border-left:3px solid var(--blue);padding:6px 0 6px 12px;background:rgba(49,91,115,.05);border-radius:0 6px 6px 0}
+  .acard .afoot{margin-top:14px;padding-top:11px;border-top:1px solid var(--line-2);
+    font-family:var(--mono);font-size:9.5px;color:var(--ink-3);display:flex;gap:14px;flex-wrap:wrap}
+  .acard .afoot .src{color:var(--blue)}
+
+  /* 质询区 */
+  .arena{margin-top:clamp(20px,4vw,28px)}
+  .challenge{background:var(--card);border:1px solid var(--line-2);border-left:4px solid var(--red);
+    border-radius:var(--r);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow);
+    animation:cardIn .35s ease both}
+  .challenge .ch-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .challenge .ch-hd .who{font-family:var(--serif);font-weight:700;font-size:15px}
+  .challenge .ch-hd .press{font-family:var(--mono);font-size:9.5px;color:#fff;background:var(--red);
+    border-radius:20px;padding:2px 10px;letter-spacing:.15em}
+  .challenge p{font-family:var(--serif);font-size:15px;line-height:2}
+  .options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+  @media(max-width:560px){.options{grid-template-columns:1fr}}
+  .opt{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:16px 18px;
+    text-align:left;font-family:var(--serif);font-size:14px;line-height:1.9;transition:all .18s;
+    animation:cardIn .35s ease both}
+  .opt small{display:block;font-family:var(--sans);font-size:10.5px;color:var(--ink-3);margin-top:8px}
+  .opt:hover{border-color:var(--ink);box-shadow:var(--shadow-lift);transform:translateY(-2px)}
+  .opt.chosen{border-color:var(--ink);background:rgba(33,29,22,.04)}
+  .feedback{background:rgba(102,112,90,.07);border:1px solid rgba(102,112,90,.2);border-radius:12px;
+    padding:16px 18px;font-family:var(--serif);font-size:13.5px;line-height:2;margin-bottom:16px;
+    animation:cardIn .3s ease both}
+  .feedback .fx{font-family:var(--mono);font-size:10.5px;margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .feedback .fx span{padding:3px 10px;border-radius:20px;font-weight:600}
+  .fx .up{background:rgba(102,112,90,.15);color:var(--olive)}
+  .fx .dn{background:rgba(180,70,50,.12);color:var(--red)}
+
+  /* 回怼输入 */
+  .freetext{display:flex;gap:10px;margin-bottom:14px;animation:cardIn .35s ease both}
+  .freetext input{flex:1;border:1.5px solid var(--line);border-radius:12px;background:var(--card);
+    padding:13px 16px;font-family:var(--serif);font-size:14px;color:var(--ink)}
+  .freetext input:focus{outline:2px solid rgba(180,70,50,.3);border-color:var(--red)}
+  .freetext button{background:var(--red);color:#fff;border:none;border-radius:12px;
+    padding:0 22px;font-size:14px;font-weight:700;white-space:nowrap}
+  .freetext button:disabled{opacity:.5}
+  .rebut{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;animation:cardIn .35s ease both}
+  .rebut .ava{flex:0 0 36px;width:36px;height:36px;border:2px solid var(--rule);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;
+    font-size:15px;background:var(--card)}
+  .rebut .rb{flex:1;background:var(--card);border:1px solid var(--line-2);border-radius:12px;padding:13px 16px}
+  .rebut .rb .who{font-size:12.5px;font-weight:700;margin-bottom:5px}
+  .rebut .rb .who .tag{font-family:var(--mono);font-weight:400;font-size:9.5px;color:var(--red);
+    background:rgba(180,70,50,.08);border-radius:20px;padding:2px 8px;margin-left:8px}
+  .rebut .rb p{font-family:var(--serif);font-size:14px;line-height:1.95}
+
+  /* 对线 */
+  .clash{position:fixed;inset:0;background:rgba(33,29,22,.62);z-index:100;display:none;
+    align-items:center;justify-content:center;padding:16px}
+  .clash.open{display:flex;animation:fadeIn .25s ease}
+  @keyframes fadeIn{from{opacity:0}}
+  .clash-card{background:var(--card);border-radius:18px;max-width:620px;width:100%;
+    padding:clamp(22px,5vw,32px);box-shadow:0 24px 80px rgba(0,0,0,.4)}
+  @media(max-width:560px){.clash{align-items:flex-end}
+    .clash-card{border-radius:18px 18px 0 0;max-width:none;margin:0 -16px;padding-bottom:34px}}
+  .clash-card .lab{font-family:var(--mono);font-size:11px;color:var(--red);font-weight:700;
+    letter-spacing:.22em;margin-bottom:14px}
+  .timer{height:5px;background:var(--line-2);border-radius:3px;margin-bottom:20px;overflow:hidden}
+  .timer .tfill{height:100%;background:var(--ink);width:100%;border-radius:3px}
+  .timer .tfill.hot{background:var(--red)}
+  .vs{display:grid;grid-template-columns:1fr 34px 1fr;gap:8px;margin-bottom:20px}
+  .vs .side{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--paper)}
+  .vs .side h4{font-family:var(--serif);font-size:14.5px;margin-bottom:8px}
+  .vs .side p{font-size:12.5px;line-height:1.9;color:var(--ink-2)}
+  .vs .x{display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-weight:800;color:var(--red);font-size:14px}
+  .clash .pick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .clash .pick button{border:2px solid var(--ink);background:var(--card);border-radius:12px;
+    padding:16px 10px;font-family:var(--serif);font-size:14.5px;font-weight:700;transition:all .18s;line-height:1.6}
+  .clash .pick button:hover{background:var(--ink);color:var(--paper)}
+  .timeout-note{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-align:center;margin-top:14px;letter-spacing:.08em}
+
+  /* ── 推演 ── */
+  .month-strip{display:flex;gap:8px;justify-content:center;margin:clamp(20px,4vw,30px) 0 10px}
+  .mdot{width:30px;height:6px;border-radius:3px;background:var(--line);transition:background .3s}
+  .mdot.done{background:var(--blue)} .mdot.now{background:var(--ink)}
+  .month-lab{text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink-3);
+    letter-spacing:.15em;margin-bottom:16px}
+  .swz{height:250px;position:relative;border-radius:18px;overflow:hidden;touch-action:none;
+    background:linear-gradient(180deg,rgba(49,91,115,.08),rgba(182,132,61,.08));
+    border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center}
+  .swcard{position:absolute;width:88%;max-width:440px;background:var(--card);border:1px solid var(--line-2);
+    border-radius:16px;box-shadow:var(--shadow-lift);padding:24px;cursor:grab;user-select:none}
+  .swcard:active{cursor:grabbing}
+  .swcard .src-tag{font-family:var(--mono);font-size:9.5px;color:var(--blue);
+    background:rgba(49,91,115,.07);border:1px solid rgba(49,91,115,.18);border-radius:20px;
+    display:inline-block;padding:3px 11px;margin-bottom:14px;letter-spacing:.06em}
+  .swcard p{font-family:var(--serif);font-size:clamp(15px,3.4vw,16.5px);line-height:2;font-weight:600}
+  .swcard .acts{display:flex;justify-content:space-between;margin-top:16px;
+    font-family:var(--sans);font-size:11.5px;color:var(--ink-3)}
+  .swcard .acts .l{color:var(--blue)} .swcard .acts .r{color:var(--red)}
+  .run-toast{margin-top:16px;background:var(--card);border:1px solid var(--line-2);border-radius:12px;
+    padding:16px 18px;font-size:13.5px;line-height:2;display:none;box-shadow:var(--shadow)}
+  .run-toast.show{display:block;animation:cardIn .3s ease both}
+  .run-toast .delayed{margin-top:10px;color:var(--amber);font-weight:600;font-family:var(--serif)}
+  .run-toast .delayed::before{content:"⏳ "}
+
+  /* 危机 */
+  .crisis{position:fixed;inset:0;background:rgba(120,32,22,.5);z-index:110;display:none;
+    align-items:center;justify-content:center;padding:16px}
+  .crisis.open{display:flex;animation:fadeIn .25s ease}
+  .crisis-card{background:var(--card);border-radius:18px;max-width:520px;width:100%;
+    padding:clamp(22px,5vw,30px);border-top:5px solid var(--red);box-shadow:0 24px 80px rgba(0,0,0,.4)}
+  @media(max-width:560px){.crisis{align-items:flex-end}
+    .crisis-card{border-radius:18px 18px 0 0;max-width:none;margin:0 -16px}}
+  .crisis-card .lab{font-family:var(--mono);color:var(--red);font-weight:700;font-size:11px;
+    letter-spacing:.25em;margin-bottom:12px}
+  .crisis-card h3{font-family:var(--serif);font-size:19px;margin-bottom:10px}
+  .crisis-card p{font-family:var(--serif);font-size:13.5px;line-height:2;color:var(--ink-2);margin-bottom:18px}
+  .crisis-card button{display:block;width:100%;border:1.5px solid var(--line);background:var(--paper);
+    border-radius:12px;padding:15px;margin-bottom:10px;text-align:left;font-family:var(--serif);
+    font-size:13.5px;line-height:1.8;transition:all .15s}
+  .crisis-card button:hover{border-color:var(--red);transform:translateY(-1px)}
+
+  /* ── 命运卡 ── */
+  .fate{position:fixed;inset:0;background:rgba(33,29,22,.78);z-index:120;display:none;
+    align-items:center;justify-content:center;padding:16px}
+  .fate.open{display:flex;animation:fadeIn .3s ease}
+  .fate-card{background:linear-gradient(165deg,#fffdf8,#f3ecdd);border-radius:20px;max-width:520px;width:100%;
+    padding:clamp(26px,6vw,36px);box-shadow:0 24px 90px rgba(0,0,0,.5);
+    max-height:92vh;overflow:auto}
+  .fate-card .fl{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.4em;text-align:center}
+  .fate-card h2{font-family:var(--serif);font-size:clamp(26px,6.4vw,32px);text-align:center;
+    margin:14px 0 8px;color:var(--red)}
+  .fate-card .verdict{font-family:var(--serif);text-align:center;font-size:13.5px;line-height:2.1;
+    color:var(--ink-2);margin-bottom:20px}
+  .fate-card .tl{border-top:1px dashed var(--line);padding-top:16px;margin-bottom:16px}
+  .fate-card .tl div{font-family:var(--serif);font-size:12px;color:var(--ink-2);line-height:2.2;
+    padding-left:16px;position:relative}
+  .fate-card .tl div::before{content:"·";position:absolute;left:2px;color:var(--red);font-weight:900}
+  .fate-card .quote{background:rgba(49,91,115,.06);border-left:3px solid var(--blue);border-radius:0 10px 10px 0;
+    padding:14px 16px;font-family:var(--serif);font-size:12.5px;line-height:2;margin-bottom:20px}
+  .fate-card .btns{display:flex;gap:12px}
+  .fate-card .btns button{flex:1;border-radius:12px;padding:14px;font-size:14px;font-weight:700;border:none;
+    font-family:var(--sans);transition:transform .15s}
+  .fate-card .btns button:hover{transform:translateY(-1px)}
+  .fate-card .again{background:var(--ink);color:var(--paper)}
+  .fate-card .copy{background:none;color:var(--ink);border:1.5px solid var(--line)!important}
+  .fate-card .back{display:block;text-align:center;margin-top:14px;font-size:12px;color:var(--ink-3);
+    background:none;border:none;width:100%}
+  .fate-card .back:hover{color:var(--ink-2)}
+
+  /* 编译中 */
+  .compiling{text-align:center;padding:70px 0;display:none}
+  .compiling.show{display:block}
+  .compiling .ring{width:46px;height:46px;border:4px solid var(--line);border-top-color:var(--red);
+    border-radius:50%;margin:0 auto 18px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .compiling p{font-family:var(--serif);font-size:13.5px;color:var(--ink-2);line-height:2.2}
+  .compiling b{color:var(--ink)}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="logo">岔路口<i>。</i><span class="v">知乎围炉 v0.3</span></div>
+    <button class="mute" id="muteBtn">🔊 音效</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div class="hud hide" id="hud">
+  <div class="wrap">
+    <div class="scale">
+      <span class="lab r">◆ 冒险</span>
+      <div class="scale-track"><div class="scale-needle" id="needle"></div></div>
+      <span class="lab b">稳妥 ◆</span>
+    </div>
+    <div class="meters">
+      <div class="meter" id="m-cash"><div class="lab">💰 存款</div><div class="bar"><div class="fill"></div></div></div>
+      <div class="meter" id="m-mood"><div class="lab">🧠 心态</div><div class="bar"><div class="fill"></div></div></div>
+      <div class="meter" id="m-opp"><div class="lab">🎯 机会</div><div class="bar"><div class="fill"></div></div></div>
+      <div class="meter" id="m-fam"><div class="lab">🏠 家人</div><div class="bar"><div class="fill"></div></div></div>
+    </div>
+    <div class="round-ind" id="roundInd"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- 第0屏：热榜选题 -->
+  <section id="screen-hot">
+    <div class="hero">
+      <div class="kicker">知乎黑客松 · 跨次元游乐场</div>
+      <h1>今晚，四位知乎答主<br>只围炉讨论<em>你一个人的事</em>。</h1>
+      <p>选一个真实知乎争议，或写下你的困境。四位由真实回答与精选评论孵化的答主会质询你、和你对线——然后陪你把这一年推演完。</p>
+    </div>
+    <div class="hotbox">
+      <div class="hd"><span class="t">知乎热榜 · 实时争议</span><span class="kicker">开放平台 zhihu_search</span></div>
+      <div class="sub" id="hotNote" style="padding:0 24px 12px;font-size:11px;color:var(--ink-3)">正在拉取知乎实时数据…</div>
+      <div id="hotList"></div>
+    </div>
+    <div class="custom">
+      <h3>你的困境不在榜上？</h3>
+      <p class="sub">用一句话写下你正卡住的决定——围炉为你现场编译。</p>
+      <textarea id="customText" maxlength="60" placeholder="例：28 岁，要不要离开老家去深圳重头开始？"></textarea>
+      <button class="go" id="customGo" disabled>编译我的围炉 →</button>
+    </div>
+    <p class="foot-note">
+      数据说明：热榜问题来自知乎开放平台实时接口；选中困境后由 LLM 实时编译围炉（答主为 AI 孵化的观点人格，
+      不冒充真实用户与历史数据）。编译结果 24 小时缓存；断网时自动切换离线快照剧本（页面会明确标注）。
+    </p>
+  </section>
+
+  <!-- 编译中 -->
+  <section class="compiling" id="compiling">
+    <div class="ring"></div>
+    <p class="kicker" id="compDilemma" style="margin:0 auto 12px;max-width:32em;line-height:2"></p>
+    <p>正在把你的困境编译成一场围炉…<br><b id="compilingTip">拉取真实争议 · 孵化四位答主</b></p>
+  </section>
+
+  <!-- 第1屏：约束配置 -->
+  <section id="screen-setup" class="hide">
+    <div class="setup">
+      <div class="kicker">STEP 1 / 1 · 你的牌面</div>
+      <h2 id="setupTitle">入席前，答主想先看你的三张底牌</h2>
+      <p class="sub">这三个答案会当场决定你的处境，也会被答主引用来怼你——他们记性很好，十二个月里每次都会翻出来考你。</p>
+      <div class="cgroup">
+        <div class="gl">💰 存款水位</div>
+        <div class="seg" id="segSave">
+          <button data-v="3m">≈3 个月<small>裸辞第二天就心慌</small></button>
+          <button data-v="6m" class="on">≈6 个月<small>有底气但不奢侈</small></button>
+          <button data-v="12m">12 个月+<small>长期主义弹药库</small></button>
+        </div>
+      </div>
+      <div class="cgroup">
+        <div class="gl">⏳ 时间窗口</div>
+        <div class="seg" id="segTime">
+          <button data-v="urgent">很急<small>再拖就过期</small></button>
+          <button data-v="mid" class="on">半年左右<small>还有得想</small></button>
+          <button data-v="loose">一年以上<small>输得起时间</small></button>
+        </div>
+      </div>
+      <div class="cgroup">
+        <div class="gl">🎒 退路</div>
+        <div class="seg" id="segBack">
+          <button data-v="yes">有<small>大不了回去</small></button>
+          <button data-v="no" class="on">没有<small>破釜沉舟</small></button>
+        </div>
+      </div>
+      <button class="start" id="startBtn">入 席 围 炉</button>
+    </div>
+  </section>
+
+  <!-- 第2屏：围炉 -->
+  <section id="screen-hearth" class="hide">
+    <div class="qcard">
+      <span class="tag" id="qTag">你的困境 · 已编译</span>
+      <h1 id="qTitle"></h1>
+      <div class="meta">
+        <span><b id="qFollow">1,284</b> 关注者</span>
+        <span>被浏览 <b id="qView">8,792,431</b></span>
+        <span><b id="qAns">4</b> 份回答正在现场互怼</span>
+      </div>
+      <div class="desc" id="qDesc"></div>
+    </div>
+    <div class="answers-label"><span class="kicker">4 份回答 · 实时赞同</span></div>
+    <div class="answers" id="answers"></div>
+    <div class="arena" id="arena"></div>
+  </section>
+
+  <!-- 第3屏：推演 -->
+  <section id="screen-run" class="hide">
+    <div class="month-strip" id="monthStrip"></div>
+    <div class="month-lab" id="monthLab"></div>
+    <div class="swz" id="swz">
+      <div class="swcard" id="swcard"></div>
+    </div>
+    <div class="run-toast" id="runToast"></div>
+  </section>
+</div>
+
+<!-- 对线 -->
+<div class="clash" id="clash">
+  <div class="clash-card">
+    <div class="lab">⚠ 对线时刻 — 你必须站队</div>
+    <div class="timer"><div class="tfill" id="tfill"></div></div>
+    <div class="vs">
+      <div class="side"><h4 id="clashLA">A</h4><p id="clashLp"></p></div>
+      <div class="x">VS</div>
+      <div class="side"><h4 id="clashRA">B</h4><p id="clashRp"></p></div>
+    </div>
+    <div class="pick">
+      <button id="pickL"></button>
+      <button id="pickR"></button>
+    </div>
+    <div class="timeout-note">6 秒内不站队 = 弃权，全桌都会记住</div>
+  </div>
+</div>
+
+<!-- 危机 -->
+<div class="crisis" id="crisis">
+  <div class="crisis-card">
+    <div class="lab">🚨 现实危机</div>
+    <h3 id="crisisTitle"></h3>
+    <p id="crisisDesc"></p>
+    <div id="crisisOpts"></div>
+  </div>
+</div>
+
+<!-- 命运卡 -->
+<div class="fate" id="fate">
+  <div class="fate-card">
+    <div class="fl">一 年 后 · 命 运 档 案</div>
+    <h2 id="fateTitle"></h2>
+    <p class="verdict" id="fateVerdict"></p>
+    <div class="tl" id="fateTl"></div>
+    <div class="quote" id="fateQuote"></div>
+    <div class="btns">
+      <button class="again" id="againBtn">换个困境再来</button>
+      <button class="copy" id="imgBtn">保存分享图</button>
+    </div>
+    <button class="back" id="backBtn">回到知乎热榜</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════ 音效 ═══════════ */
+let AC=null, muted=false;
+function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} } return AC; }
+function tone(f,d,type="sine",g=0.04,delay=0){
+  if(muted) return; const c=ac(); if(!c) return;
+  const o=c.createOscillator(), gn=c.createGain();
+  o.type=type; o.frequency.value=f;
+  gn.gain.setValueAtTime(g,c.currentTime+delay);
+  gn.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+delay+d);
+  o.connect(gn); gn.connect(c.destination);
+  o.start(c.currentTime+delay); o.stop(c.currentTime+delay+d+0.05);
+}
+const snd={
+  tick:()=>tone(880,0.05,"sine",0.025),
+  card:()=>{tone(520,0.06,"triangle",0.04);tone(660,0.06,"triangle",0.03,0.05)},
+  stamp:()=>{tone(120,0.12,"square",0.06);tone(80,0.15,"sine",0.05,0.02)},
+  whoosh:()=>{tone(300,0.1,"sawtooth",0.02);tone(600,0.08,"sawtooth",0.015,0.04)},
+  alarm:()=>{tone(660,0.12,"square",0.05);tone(520,0.12,"square",0.05,0.15);tone(660,0.12,"square",0.05,0.3)},
+  win:()=>{tone(523,0.1,"triangle",0.05);tone(659,0.1,"triangle",0.05,0.1);tone(784,0.2,"triangle",0.06,0.2)},
+  lose:()=>{tone(330,0.15,"triangle",0.05);tone(262,0.25,"triangle",0.05,0.15)},
+};
+document.getElementById("muteBtn").addEventListener("click",e=>{
+  muted=!muted; e.target.textContent = muted?"🔇 静音":"🔊 音效";
+});
+
+/* ═══════════ 话题数据（案例来自真实知乎证据表） ═══════════ */
+const TOPICS={
+  coder:{
+    hot:"程序员未来是不是会大量失业？",
+    q:"30 岁，写代码第五年，行业在收缩——要不要裸辞，全力转型？",
+    heat:"5,599 万", follows:"1,284", views:"8,792,431",
+    desc:"你的真实处境：存款、时间窗、退路已登记。四位来自这个问题下真实回答与精选评论的答主，今晚只围炉讨论你一个人的事。",
+    src:"https://www.zhihu.com/question/593275984/answer/3383115383",
+    srcTag:"编译自真实回答 · 2,271 赞同 / 722 评论",
+    advisors:[
+      {id:"mao",ch:"猫",name:"老猫",bio:"押注失业派 · 真实回答作者",color:"#66705A",votes:2271,
+       open:"<b>先说结论：</b>行业的黄金时代结束了。AI 让一个程序员干过去三个人的活——你在数岗位，我在数工时，工时不撒谎。",
+       cmt:"「一个医生/律师+AI，干不了以前十个医生/律师干的事情吗？」——2,410 赞的反对评论"},
+      {id:"lan",ch:"澜",name:"阿澜",bio:"过来人 · 去年裸辞过一次",color:"#315B73",votes:1893,
+       open:"<b>利益相关：</b>去年裸辞过，现在回来答这题。我去年就是这么「再看看」的——看着看着，招聘 JD 缩了一半。",
+       cmt:"「我就是程序员，行业确实不景气，但 AI 淘汰程序员，那必然也会淘汰项目经理、美工……」"},
+      {id:"chen",ch:"陈",name:"陈总",bio:"老板视角 · 面过上千份简历",color:"#8590a6",votes:942,
+       open:"从老板视角补一刀：你们聊理想，我聊空窗期。<b>裸辞六个月，简历到我手里先打七折。</b>这七折，你打算拿什么填？",
+       cmt:"「当代码都是清北学生来写的时候，说明这行不值得进入了。」——热评第一"},
+      {id:"man",ch:"满",name:"小满",bio:"跨行业类比派 · 反对最高票",color:"#b44632",votes:1546,
+       open:"<b>泻药。反对最高票。</b>医生加 AI 也没变成半个医生，凭什么程序员就该信自己最先出局？淘汰的是岗位，不是行业。",
+       cmt:"精选反例：「程序员确实会越来越卷，岗越来越少……」"},
+    ],
+    rounds:[
+      {by:"mao",press:"质询",
+       text:"你心里那点转型的小火苗，我泼点冷水：<b>现在转，是逃跑还是突围？</b>说清楚——如果只是逃避写代码，新赛道照样卷死你。",
+       opts:[
+         {t:"「是突围。我要抢新赛道的时间窗，晚一年连入场券都没了。」",fx:{scale:-10,mood:+6,opp:+8,cash:0,fam:0},
+          reply:"小满按了个赞：「时间窗这三个字，是全场唯一让我认同老猫的地方——只不过结论相反。」",vt:"man"},
+         {t:"「先留下攒钱攒证，转型当副业慢慢试，稳字当头。」",fx:{scale:+10,cash:+6,opp:-8,mood:0,fam:0},
+          reply:"老猫追了一句：「副业转型＝没转。你会在『再攒半年』里过完五年。」",vt:"mao"}]},
+      {by:"chen",press:"追问",
+       text:"好，说点实在的。<b>六个月空窗期，简历先打七折</b>——我不是吓你，我上周刚毙掉一个 gap 八个月的候选人。这七折你拿什么填？",
+       opts:[
+         {t:"「用作品集填。辞职当天就开工，三个月后拿出能打的东西。」",fx:{scale:-8,opp:+10,mood:+4,cash:-4,fam:0},
+          reply:"陈总难得点头：「有作品的 gap 叫自我投资，没作品的才叫失业。记住你今天说的话。」",vt:"chen"},
+         {t:"「所以我先骑驴找马，拿到 offer 再递辞呈，一折都不打折。」",fx:{scale:+8,cash:+6,opp:-4,mood:0,fam:+4},
+          reply:"阿澜叹气：「骑驴找马是对的路，但你晚上加班到十点，哪来的时间做作品集？驴会吃掉你的马料。」",vt:"lan"}]},
+      {by:"lan",press:"最后一问",
+       text:"问点扎心的。我去年也说过「准备好再走」，结果<b>准备永远差一口气</b>。如果三个月后行情更差、存款更薄——你递辞呈的手，会比今天更稳吗？",
+       opts:[
+         {t:"「不会更稳，所以不等了，本月递。」",fx:{scale:-12,mood:+8,cash:-6,opp:+4,fam:-4},
+          reply:"全场安静了两秒。老猫：「窗口论我认。但你最好祈祷存款撑得到转出来那天。」",vt:"mao"},
+         {t:"「会。我给自己设了硬期限：三个月，到点必须动。」",fx:{scale:+6,mood:+4,cash:+4,opp:0,fam:+6},
+          reply:"阿澜：「有期限的骑驴找马，比无期限的裸辞靠谱。期限写在评论区，让全桌监督你。」",vt:"lan"}]},
+    ],
+    clash:{L:{name:"小满 · 断崖派",p:"断崖式投入。没有退路，学习密度才够——半吊子的骑驴找马，最后驴没了马也没影。",
+              btn:"站小满：断崖才有全力",fx:{scale:-8,mood:+4}},
+           R:{name:"陈总 · 现金流派",p:"六个月空窗先打七折。先拿 offer 再辞职——勇气不值钱，现金流才值钱。",
+              btn:"站陈总：先找下家",fx:{scale:+8,cash:+4}}},
+    months:[
+      {m:"第 1 个月",src:"机会事件 · 由「陈总的空窗期警告」触发",
+       text:"猎头来电：一家小公司认可你的方向，愿付 <b>8 折薪资</b>，但要求两周内到岗——上去就是转型岗。",
+       L:{t:"拒绝：再等等更好的",fx:{opp:-10,mood:+4},log:"拒绝了 8 折的转型 offer"},
+       R:{t:"接受：先上岸再说",fx:{cash:+8,opp:-6,mood:-4},log:"接受 8 折 offer 先上岸",delay:"第 3 个月：入职后发现新岗位用的还是你转型前的技能栈——「转型」被现实改写成了「换个地方打工」。"}},
+      {m:"第 2 个月",src:"消耗事件 · 由「老猫的工时论」触发",
+       text:"朋友圈刷到 <b>¥12,800 的「AI 全栈转型营」</b>，讲师头衔唬人，往期学员就业率写得含糊。你盯着手里的存款算了算。",
+       L:{t:"买课：花钱买路径",fx:{cash:-12,mood:+6,opp:+4},log:"花 1.28 万报了转型营"},
+       R:{t:"自学：拿时间换钱",fx:{cash:0,mood:-6,opp:+2},log:"决定自学，省下 1.28 万"}},
+      {m:"第 3 个月",src:"压力事件 · 由「你的约束牌」触发",
+       text:"家庭聚餐，亲戚当着一桌人问：<b>「听说你把工作辞了？接下来干啥呢？」</b>全桌筷子都停了。",
+       L:{t:"坦白讲计划",fx:{fam:+8,mood:+4},log:"饭桌坦白转型计划，家人站了你"},
+       R:{t:"含糊过去",fx:{fam:-8,mood:-4},log:"饭桌含糊其辞，家里人开始担心"}},
+      {m:"第 4 个月",src:"机会事件 · 由「阿澜的骑驴找马」触发",
+       text:"老同事内推：<b>大厂外包岗</b>，钱正常、活不累，但技术栈陈旧、简历含金量存疑。",
+       L:{t:"接：先止血",fx:{cash:+10,opp:-6,fam:+4},log:"接受大厂外包止血"},
+       R:{t:"拒：不碰旧船票",fx:{cash:-4,opp:0,mood:+4},log:"拒绝了外包，死磕新方向"}},
+    ],
+    endings:{
+      crash:{t:"击鼓传花，花停你手",v:"鼓停在你手里那次，正好赶上行业最冷的一个季度。这不全是你的错，但账得你来平。命运给你留了一句话：停下来不是失败，赖在地上才是。"},
+      bold:{t:"背水一战的人",v:"一年后你没有成为传说，也没有破产。你只是比所有人都早一年开始重新起步——崖下没有网，但你的翅膀比你以为的大。"},
+      steady:{t:"骑驴找马大师",v:"驴还在，马也来了。你牺牲了两年「说走就走」的爽感，换来了一个不打折的自己。评论区会吵你怂，但只有你知道每晚睡得多踏实。"},
+      fence:{t:"精致的观望者",v:"一年过去，你还在原位。所有选项你都研究过，所有风险你都预判过——除了「什么都没选」本身也是一种选。老猫的工时论，一年里一刻没停过。"},
+    },
+  },
+
+  quit:{
+    hot:"现在该不该裸辞？就业行情一般，裸辞风险值不值得承担？",
+    q:"工作耗尽了我，行情又一般——要不要裸辞，先歇口气？",
+    heat:"3,287 万", follows:"2,130", views:"12,405,118",
+    desc:"你的真实处境：存款、时间窗、退路已登记。四位来自这个问题下真实回答与精选评论的答主，今晚只围炉讨论你一个人的事。",
+    src:"https://www.zhihu.com/question/*****/answer/*****",
+    srcTag:"编译自真实回答与精选评论快照",
+    advisors:[
+      {id:"zhang",ch:"账",name:"账本君",bio:"现金流第一主义者",color:"#66705A",votes:3105,
+       open:"<b>先问存款，再问梦想。</b>低于 6 个月现金储备，一切「歇口气」都是赊账——利息是焦虑，复利。",
+       cmt:"「除非有钱，负债仍想辞」——本题评论区分歧最大的分水岭"},
+      {id:"lin",ch:"林",name:"林医生",bio:"心理卫生方向 · 语气很轻",color:"#315B73",votes:2764,
+       open:"说点不合时宜的：<b>耗竭是真的，不是矫情。</b>但治疗耗竭的处方里，「辞职」只是众多选项中代价最高的一个。",
+       cmt:"「骑驴找马」在本题下被提了 400+ 次"},
+      {id:"zhou",ch:"周",name:"老周",bio:"HR 总监 · 招过也裁过",color:"#8590a6",votes:1208,
+       open:"我聊聊 gap 的隐性成本：<b>面试时每一次空窗都要编一个故事</b>，编故事的心理成本，比上班还累。",
+       cmt:"「就业行情一般」——题干本身就是 2026 的事实"},
+      {id:"k",ch:"K",name:"小 K",bio:"亲历者 · 负债裸辞过",color:"#b44632",votes:1987,
+       open:"<b>利益相关：</b>我负债 8 万还是辞了。以下是我的真实账单：歇了 2 个月，找工作花了 3 个月，薪资掉了 2K。值不值？往下滑。",
+       cmt:"「我辞了，找到了，但用了 5 个月」——亲历反例精选评论"},
+    ],
+    rounds:[
+      {by:"zhang",press:"质询",
+       text:"第一刀切最狠的：<b>把你的存款除以每月硬支出，得几？</b>低于 6，你讨论的不是休息，是把老板的焦虑升级成自己的。",
+       opts:[
+         {t:"「够。我的弹药够我撑过一个完整的求职周期。」",fx:{scale:-8,mood:+6,cash:0,fam:0},
+          reply:"账本君：「行，那你有资格谈『歇口气』。但弹药充足的人往往打得最久——设个止损线。」",vt:"zhang"},
+         {t:"「不到 3 个月。但再不辞，人会先于存款见底。」",fx:{scale:-6,mood:-6,cash:-4,fam:-2},
+          reply:"账本君难得软了一秒：「这个理由我听过一百次，成立的那十次，都配了止损计划。你的呢？」",vt:"lin"}]},
+      {by:"lin",press:"追问",
+       text:"轻声问一句：<b>你上一次睡满 7 小时是什么时候？</b>耗竭的人做的决定，一半是给自己的，一半是给潜意识的——你分得清吗？",
+       opts:[
+         {t:"「分不清。所以我先请长期病假休整，不辞职。」",fx:{scale:+10,mood:+10,cash:-4,opp:-2},
+          reply:"林医生：「这是我今晚听到的第一个既治耗竭、又不放血的方案。病假条和心理按摩，有时候是同一个东西。」",vt:"lin"},
+         {t:"「分得清。我耗竭的根源就是这份工作本身，请假治标不治本。」",fx:{scale:-8,mood:+4,fam:-2},
+          reply:"林医生：「如果你真能分清，我不拦你。但请把这句话写在工位上——三个月后回来核对。」",vt:"k"}]},
+      {by:"k",press:"最后一问",
+       text:"用我的账单问你最后一个：<b>我歇了 2 个月、花了 3 个月找工作、薪资掉了 2K——如果这是你的剧本，你签不签？</b>",
+       opts:[
+         {t:"「签。命比薪资贵，2K 买不回我的头发。」",fx:{scale:-10,mood:+8,opp:-4,fam:-2},
+          reply:"小 K：「好，那你也接受剧本里我删掉的那幕：第 4 个月，我妈哭了。去找个能跟你一起扛剧本的人。」",vt:"k"},
+         {t:"「不签。我先苟着，把身体养好、把机会找准再动。」",fx:{scale:+8,cash:+4,mood:-2,fam:+4},
+          reply:"老周插话：「这是 HR 最爱的答案。苟着的人简历上没有故事，但银行流水上有安全感。」",vt:"zhou"}]},
+    ],
+    clash:{L:{name:"林医生 · 止血派",p:"先请病假休整一个月，代价最小地验证自己是不是真的需要辞职。",
+              btn:"站林医生：先止血",fx:{scale:+6,mood:+8}},
+           R:{name:"小 K · 止损派",p:"耗竭的根源是工作本身。长痛不如短痛，辞，把止损线写在纸上。",
+              btn:"站小K：长痛不如短痛",fx:{scale:-6,cash:-4}}},
+    months:[
+      {m:"第 1 个月",src:"自由事件 · 由「你的裸辞决定」触发",
+       text:"裸辞第 10 天：<b>睡到自然醒的第 4 天</b>，你投出的第 1 份简历已读不回。自由的味道里开始混进一点别的味道。",
+       L:{t:"正好休整，先玩两周",fx:{mood:+10,cash:-4,opp:-2},log:"头一个月真的在休息"},
+       R:{t:"把找工作当上班",fx:{mood:-6,opp:+8},log:"裸辞第二天就开始投简历"}},
+      {m:"第 2 个月",src:"现实事件 · 由「账本君的 6 个月红线」触发",
+       text:"手机弹出提醒：<b>社保断缴将影响医保报销。</b>你第一次意识到，「自由」是有月供的。",
+       L:{t:"自己交灵活就业社保",fx:{cash:-8,mood:+2},log:"自缴社保，自由有月供"},
+       R:{t:"先断着，找到再说",fx:{cash:0,mood:-8},log:"社保断缴，赌运气"}},
+      {m:"第 3 个月",src:"机会事件 · 由「老周的 gap 成本论」触发",
+       text:"面试邀约来了：岗位合适，但<b>薪资比上一份低 30%</b>。HR 直说：「gap 期间我们默认你要价会低。」",
+       L:{t:"接受：先回到牌桌",fx:{cash:+10,opp:+4,mood:-6},log:"接受降薪 30% 的 offer",delay:"第 4 个月：入职一个月后你发现，降薪的班上起来比原来的班还累——「止损」变成了「再亏一次」。"},
+       R:{t:"拒绝：不接受 gap 税",fx:{opp:-6,mood:+6},log:"拒绝 gap 税，继续等"}},
+      {m:"第 4 个月",src:"诱惑事件 · 由「小K的账单」触发",
+       text:"前同事拉你入伙：<b>社区咖啡店，投 15 万回本两年</b>——账算得漂亮，但你对咖啡的了解仅限于拿铁。",
+       L:{t:"入伙：反正闲着",fx:{cash:-14,mood:+4,opp:-4},log:"投 15 万合伙开咖啡店"},
+       R:{t:"拒绝：不拿空窗期赌",fx:{mood:-2,cash:+2},log:"拒绝了咖啡店合伙"}},
+    ],
+    endings:{
+      crash:{t:"裸辞反噬者",v:"你用三个月的自由，换来了两年的账单。命运没有嘲讽你的意思——它只是提醒：下次止损线要写在辞职信之前，不是之后。"},
+      bold:{t:"gap 半年的人",v:"你休整、你空窗、你付了 gap 税，但你回来了。林医生说得对：耗竭是真的。现在它也是过去式了。"},
+      steady:{t:"带薪苟活大师",v:"你没用辞职治愈自己，你用了更便宜的方式：边界、睡眠、和一封改了 8 版的离职信（至今没发）。省下的钱，是给你的从容买单。"},
+      fence:{t:"薛定谔的辞职者",v:"辞了又像没辞，没辞又像辞了。你卡在中间最贵的位置：拿着工资，耗着心力。账本君想给你记账，都不知道该记哪一页。"},
+    },
+  },
+};
+
+/* 自定义话题模板 */
+function makeCustomTopic(text){
+  const t=text.trim().slice(0,40);
+  return {
+    hot:"自定义困境",q:t,heat:"—",follows:"—",views:"—",
+    desc:"你的真实处境：存款、时间窗、退路已登记。四位答主正在围绕你的困境列队（原型为模板预演，正式版由直答 Agent 从真实知乎讨论实时编译）。",
+    src:"",srcTag:"正式版：直答 Agent 实时编译",
+    advisors:[
+      {id:"cold",ch:"冷",name:"冷水君",bio:"专职泼冷水 · 先找漏洞",color:"#8590a6",votes:864,
+       open:`<b>先说结论：先别急。</b>「${t}」——这句话里有三个没验证的假设，我一个一个拆。`,cmt:"「先问是不是，再问为什么」——知乎第一军规"},
+      {id:"fire",ch:"火",name:"火苗君",bio:"行动派 · 怕你想太多",color:"#b44632",votes:1321,
+       open:`<b>泻药。</b>看到「${t}」我就想起来了：五年前我也卡在同一句话上。想是问题，做才是答案。`,cmt:"「种一棵树最好的时间是十年前，其次是现在」"},
+      {id:"calc",ch:"算",name:"算盘君",bio:"什么都要算一遍",color:"#66705A",votes:977,
+       open:`利益相关：算账的。把「${t}」拆成钱、时间、退路三项——你的牌面刚登记完，我看了，<b>不是不能打，但经不起浪费。</b>`,cmt:"「用数据说话」"},
+      {id:"past",ch:"过",name:"过来人君",bio:"走过弯路 · 现身说法",color:"#315B73",votes:1533,
+       open:`这题我太有发言权了。「${t}」的每个岔路口我都踩过，<b>包括那个你没看到的第三岔口。</b>听我慢慢说。`,cmt:"「我不是劝你，我是劝你别像我」"},
+    ],
+    rounds:[
+      {by:"cold",press:"质询",
+       text:`你说「<b>${t}</b>」——但我想先问：这个念头是一周前就有，还是昨晚上头？<b>上头做的决定，醒着的时候要还。</b>`,
+       opts:[
+         {t:"「想了很久了，不是冲动。」",fx:{scale:-8,mood:+4},reply:"冷水君：「行，那当我没说。但『想了很久』也分真想和假想——把成本写下来再谈。」",vt:"fire"},
+         {t:"「确实有点上头，但再不上头就晚了。」",fx:{scale:-4,mood:-2},reply:"冷水君：「至少你诚实。晚了这个说法，是火苗君教你的吧？」",vt:"cold"}]},
+      {by:"calc",press:"追问",
+       text:"算点实际的：这事<b>成了你得到什么，败了你剩下什么？</b>两项都不成正数的选择，不叫勇敢，叫赌博。",
+       opts:[
+         {t:"「成了翻身，败了大不了重来一遍。」",fx:{scale:-10,opp:+6,cash:-4},reply:"算盘君：「『重来一遍』的成本也算进去了吗？年轻人最大的错觉是以为时间免费。」",vt:"calc"},
+         {t:"「我设了止损线：亏到某个数就撤。」",fx:{scale:+6,cash:+4,mood:+2},reply:"算盘君：「有止损线的人才有资格上桌。写下来，贴墙上。」",vt:"past"}]},
+      {by:"past",press:"最后一问",
+       text:`最后问个我当年没敢问的：<b>如果没人知道你的选择结果——你还会选「${t}」吗？</b>去掉掌声和嘲笑，剩下的才是你的。`,
+       opts:[
+         {t:"「会。那我就不等了。」",fx:{scale:-12,mood:+8},reply:"过来人君：「那你去吧。我在岔路口那头等你——记得带着止损线。」",vt:"fire"},
+         {t:"「会，但我想准备得再充分一点。」",fx:{scale:+8,mood:+4},reply:"火苗君急了：「『再充分一点』是拖延症的马甲！给自己个日期，别给借口。」",vt:"past"}]},
+    ],
+    clash:{L:{name:"火苗君 · 行动派",p:"想到就去做，边做边修正。想清楚再做的人，永远差最后一步没想清楚。",
+              btn:"站火苗君：先干再说",fx:{scale:-8,mood:+4}},
+           R:{name:"冷水君 · 验证派",p:"先小成本验证三个假设，再 all in。试错的代价要花在刀刃上。",
+              btn:"站冷水君：先验证",fx:{scale:+8,cash:+2}}},
+    months:[
+      {m:"第 1 个月",src:"行动事件 · 由「火苗君」触发",
+       text:`你为「${t}」迈出第一步，两周过去：<b>进展比你想象的慢，但没你害怕的那么糟。</b>`,
+       L:{t:"加大投入，加速推进",fx:{cash:-8,opp:+8,mood:-2},log:"第一个月就加了码"},
+       R:{t:"按节奏慢慢来",fx:{mood:+6,opp:0},log:"按自己的节奏推进"}},
+      {m:"第 2 个月",src:"质疑事件 · 由「冷水君」触发",
+       text:"身边出现第一个泼冷水的：<b>「我看你这事悬。」</b>偏偏这个人，是你最在乎的。",
+       L:{t:"用进展回应，不争论",fx:{mood:+4,fam:+4},log:"用行动回应了质疑"},
+       R:{t:"深夜emo，怀疑自己",fx:{mood:-10},log:"被质疑戳中，emo了一晚"}},
+      {m:"第 3 个月",src:"消耗事件 · 由「算盘君」触发",
+       text:"账单来了：<b>这件事的隐性成本开始显形</b>——时间、人情、睡眠，账本比计划书厚。",
+       L:{t:"砍掉非核心开支，聚焦",fx:{cash:+6,mood:-4},log:"做了减法，聚焦主线"},
+       R:{t:"咬牙全都要",fx:{cash:-10,mood:-2,opp:+4},log:"全都要的代价开始显形"}},
+      {m:"第 4 个月",src:"意外事件 · 由「过来人君」触发",
+       text:`一个意外机会找上门——<b>和「${t}」有关，但不完全是你计划的形状。</b>`,
+       L:{t:"接住：形状可以再改",fx:{opp:+10,cash:-4},log:"接住了计划外但相关的机会"},
+       R:{t:"放弃：不是我要的",fx:{mood:+4,opp:-6},log:"拒绝了一个「变形」的机会"}},
+    ],
+    endings:{
+      crash:{t:"孤注一掷者",v:"你把牌全押上了一张翻不了的桌。命运想告诉你：勇敢和莽撞的区别，就是止损线有没有写在之前。"},
+      bold:{t:"破局者",v:`「${t}」——一年后这句话有了下文。不完美，但它是你的下文。火苗君只想说一句：看，做才是答案。`},
+      steady:{t:"稳中求进者",v:"你验证、你推进、你在关键处踩了刹车。一年后回看，你没有错过悬崖，也没有错过路口。"},
+      fence:{t:"原地打转者",v:"所有念头你都想过，所有风险你都预判过。一年过去，「想清楚」还是没有到来——因为它从来不会自己到来。"},
+    },
+  };
+}
+
+/* ═══════════ 全局状态 ═══════════ */
+const S={
+  topic:null, cons:{save:"6m",time:"mid",back:"no"},
+  scale:0, meters:{cash:60,mood:60,opp:60,fam:60},
+  round:0, log:[], votes:{}, monthIdx:0, swiped:false,
+  crisisUsed:false, clashPick:null, lastChoice:{},
+};
+const $=id=>document.getElementById(id);
+const screens=["screen-hot","screen-setup","screen-hearth","screen-run"];
+function show(id){ screens.forEach(s=>$(s).classList.add("hide")); if(id)$(id).classList.remove("hide"); window.scrollTo(0,0); }
+function showHud(v){ $("hud").classList.toggle("hide",!v); }
+
+/* ═══════════ 热榜渲染（真实知乎数据优先，离线快照兜底） ═══════════ */
+const HOT_KEYS=["coder","quit"];
+let pendingForge=null;   // {dilemma} — 需要真实编译的困境
+let pendingTopic=null;   // 离线脚本话题（仅断网兜底）
+
+async function loadHot(){
+  const box=$("hotList");
+  box.innerHTML=`<div class="hot-item" style="cursor:default"><div class="rank r3">…</div><div><div class="t">正在拉取知乎实时争议…</div><div class="meta">开放平台 · zhihu_search</div></div></div>`;
+  let items=[];
+  try{
+    const r=await fetch("/api/hot");
+    if(r.ok){ const d=await r.json(); items=d.items||[]; }
+  }catch(e){}
+  box.innerHTML="";
+  if(items.length){
+    items.slice(0,6).forEach((it,i)=>{
+      const d=document.createElement("div");
+      d.className="hot-item";
+      d.innerHTML=`<div class="rank r${Math.min(i+1,3)}">${i+1}</div>
+        <div><div class="t">${it.title}</div>
+        <div class="meta"><b>${it.metrics||it.heat}</b> · 知乎实时数据 · 点击围炉此困境</div></div>`;
+      d.addEventListener("click",()=>{ snd.tick(); pickDilemma(it.title); });
+      box.appendChild(d);
+    });
+    $("hotNote").textContent="以上问题来自知乎开放平台实时数据 · 点击任一困境，AI 为你现场编译围炉";
+  }else{
+    HOT_KEYS.forEach((k,i)=>{
+      const t=TOPICS[k];
+      const d=document.createElement("div");
+      d.className="hot-item";
+      d.innerHTML=`<div class="rank r${i+1}">${i+1}</div>
+        <div><div class="t">${t.hot}</div>
+        <div class="meta"><b>${t.heat} 热度</b> · 离线演示快照（历史抓取）</div></div>`;
+      d.addEventListener("click",()=>{ snd.tick(); startScripted(t); });
+      box.appendChild(d);
+    });
+    $("hotNote").textContent="实时热榜暂不可用，已切换离线演示快照（数据为历史抓取，非实时）";
+  }
+}
+
+function pickDilemma(text){
+  pendingForge={dilemma:text}; pendingTopic=null;
+  $("setupTitle").textContent="开工前，先摸清你的牌";
+  show("screen-setup"); showHud(false);
+}
+function startScripted(topic){
+  pendingTopic=topic; pendingForge=null;
+  $("setupTitle").textContent="开工前，先摸清你的牌（离线快照）";
+  show("screen-setup"); showHud(false);
+}
+
+$("customText").addEventListener("input",e=>{ $("customGo").disabled=!e.target.value.trim(); });
+$("customGo").addEventListener("click",()=>{
+  const t=$("customText").value.trim(); if(!t) return;
+  snd.tick(); pickDilemma(t);
+});
+
+/* ═══════════ 约束配置 ═══════════ */
+function bindSeg(id,key){
+  $(id).querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      $(id).querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on"); S.cons[key]=b.dataset.v; snd.tick();
+    });
+  });
+}
+bindSeg("segSave","save"); bindSeg("segTime","time"); bindSeg("segBack","back");
+
+$("startBtn").addEventListener("click",async ()=>{
+  const c=S.cons;
+  S.meters.cash = c.save==="3m"?38 : c.save==="6m"?58 : 78;
+  S.meters.opp  = c.time==="urgent"?48 : c.time==="mid"?60 : 68;
+  S.meters.mood = c.back==="yes"?64 : 54;
+  S.meters.fam  = c.back==="yes"?66 : 58;
+  S.scale=0; S.round=0; S.log=[]; S.monthIdx=0; S.crisisUsed=false; S.clashPick=null; S.lastChoice={};
+  if(pendingForge){ await forgeAndStart(pendingForge.dilemma); }
+  else if(pendingTopic){
+    S.topic=pendingTopic;
+    show(null); showHud(false);
+    $("compDilemma").textContent=`「${pendingTopic.q}」`;
+    $("compiling").classList.add("show");
+    setTimeout(()=>{ $("compiling").classList.remove("show"); renderHearth(); },1600);
+  }
+});
+
+/* 真实编译：/api/forge；失败回退离线模板（诚实标注） */
+async function forgeAndStart(dilemma){
+  show(null); showHud(false);
+  $("compDilemma").textContent=`「${dilemma}」`;
+  $("compiling").classList.add("show");
+  const tips=["拉取真实争议上下文…","孵化四位答主人格…","排列三轮质询与对线冲突点…","推演十二个月命运分岔…"];
+  let ti=0; $("compilingTip").textContent=tips[0];
+  const iv=setInterval(()=>{ ti++; if(ti<tips.length)$("compilingTip").textContent=tips[ti]; },4500);
+  let topic=null, live=false;
+  const t0=Date.now();
+  for(let attempt=0; attempt<2 && !topic; attempt++){
+    try{
+      const r=await fetch("/api/forge",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ dilemma, save:S.cons.save, time:S.cons.time, back:S.cons.back })
+      });
+      if(r.ok){ const d=await r.json(); if(d?.topic){ topic=d.topic; live=true; } }
+    }catch(e){}
+    if(!topic && attempt===0) await new Promise(res=>setTimeout(res,800));
+  }
+  const remain=Math.max(0,3200-(Date.now()-t0));
+  await new Promise(res=>setTimeout(res,remain));
+  clearInterval(iv);
+  $("compiling").classList.remove("show");
+  if(!topic){ topic=makeCustomTopic(dilemma); topic.srcTag="离线模板 · 编译服务暂不可用"; }
+  S.topic=topic;
+  renderHearth();
+  if(live) toastLive();
+}
+function toastLive(){
+  const el=document.createElement("div");
+  el.style.cssText="position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:130;background:#211d16;color:#f7f2e9;font-size:12px;padding:9px 18px;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.3)";
+  el.textContent="⚡ 本场围炉由 AI 为你的困境实时编译";
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+/* ═══════════ 围炉渲染 ═══════════ */
+function fmtVotes(n){ return n>=10000 ? (n/10000).toFixed(1)+" 万" : n.toLocaleString(); }
+function renderHearth(){
+  const t=S.topic;
+  $("qTitle").textContent=t.q;
+  $("qFollow").textContent=t.follows; $("qView").textContent=t.views;
+  $("qDesc").textContent=t.desc;
+  $("qTag").textContent=t.srcTag;
+  const box=$("answers"); box.innerHTML="";
+  t.advisors.forEach((a,i)=>{
+    S.votes[a.id]=a.votes;
+    const d=document.createElement("div");
+    d.className="acard"; d.style.animationDelay=(i*0.12)+"s";
+    const voteLabel = t.aiCompiled ? "现场人气" : "赞同 · 该回答";
+    const footSrc = t.aiCompiled ? "※ AI 实时编译 · 观点人格" : (t.src?"⧉ 来源可回链":"※ 原型模板");
+    d.innerHTML=`<div class="ahd">
+        <div class="ava" style="background:${a.color}">${a.ch}</div>
+        <div><div class="an">${a.name}</div><div class="ab">${a.bio}</div></div>
+        <div class="votes"><div class="v" id="v-${a.id}">▲ ${fmtVotes(a.votes)}</div><div class="vl">${voteLabel}</div></div>
+      </div>
+      <div class="atext">${a.open}</div>
+      <div class="cmt">${a.cmt}</div>
+      <div class="afoot"><span>发布于 今天</span><span>著作权归作者所有</span><span class="src">${footSrc}</span></div>`;
+    box.appendChild(d);
+  });
+  $("arena").innerHTML="";
+  show("screen-hearth"); showHud(true);
+  updateHud();
+  setTimeout(nextRound, 1600 + t.advisors.length*120);
+}
+
+function updateHud(){
+  const m=S.meters;
+  for(const k of ["cash","mood","opp","fam"]){
+    const el=$("m-"+k), v=Math.max(0,Math.min(100,m[k]));
+    el.querySelector(".fill").style.width=v+"%";
+    el.classList.toggle("low",v<=25);
+  }
+  const pct=Math.max(4,Math.min(96, 50+S.scale));
+  $("needle").style.left=pct+"%";
+  $("roundInd").textContent = S.round < S.topic.rounds.length
+    ? `围炉质询 · 第 ${S.round+1}/${S.topic.rounds.length} 轮`
+    : "质询结束 · 推演准备中";
+}
+
+function nextRound(){
+  const t=S.topic;
+  if(S.round>=t.rounds.length){ finishHearth(); return; }
+  const r=t.rounds[S.round];
+  const adv=t.advisors.find(a=>a.id===r.by);
+  const arena=$("arena");
+  const ch=document.createElement("div");
+  ch.className="challenge";
+  ch.innerHTML=`<div class="ch-hd"><span class="who">${adv.name}</span><span class="press">${r.press}</span></div>
+    <p>${r.text}</p>`;
+  arena.appendChild(ch); snd.card();
+  const og=document.createElement("div"); og.className="options"; og.id="opts-"+S.round;
+  r.opts.forEach((o,i)=>{
+    const b=document.createElement("button");
+    b.className="opt"; b.style.animationDelay=(i*0.08)+"s";
+    b.innerHTML=`${o.t}<small>选择后不可撤回 · 全场都在看</small>`;
+    b.addEventListener("click",()=>chooseOption(r,o,b));
+    og.appendChild(b);
+  });
+  arena.appendChild(og);
+  const ft=document.createElement("div"); ft.className="freetext";
+  ft.innerHTML=`<input id="ftInput" maxlength="80" placeholder="不服？亲口回怼——AI 答主即兴接招">
+    <button id="ftSend">回 怼</button>`;
+  arena.appendChild(ft);
+  ft.querySelector("#ftSend").addEventListener("click",()=>sendRebuttal(r,ft));
+  ft.querySelector("#ftInput").addEventListener("keydown",e=>{ if(e.key==="Enter") sendRebuttal(r,ft); });
+  ch.scrollIntoView({behavior:"smooth",block:"center"});
+  updateHud();
+}
+
+function chooseOption(r,o,btn){
+  document.querySelectorAll(".opt").forEach(x=>{x.disabled=true;x.style.opacity=.5});
+  const ft=document.querySelector(".freetext"); if(ft) ft.remove();
+  btn.classList.add("chosen"); btn.style.opacity=1;
+  snd.stamp();
+  applyAndAdvance(o.fx, o.t.replace(/[「」]/g,"").slice(0,22), `<b>全场反应：</b>${o.reply}`, r.vt?[r.vt]:[]);
+}
+
+function applyAndAdvance(fx,logEntry,fbHtml,vtIds){
+  for(const k of ["cash","mood","opp","fam"]) S.meters[k]=Math.max(0,Math.min(100,S.meters[k]+(fx[k]||0)));
+  S.scale+=fx.scale||0;
+  if(logEntry) S.log.push(logEntry);
+  (vtIds||[]).forEach(id=>tickVotes(id, 60+Math.floor(Math.random()*300)));
+  const fb=document.createElement("div"); fb.className="feedback";
+  const parts=[];
+  if(fx.scale) parts.push(`<span class="${fx.scale<0?"up":"dn"}">立场 ${fx.scale<0?"→ 冒险":"→ 稳妥"}</span>`);
+  for(const [k,label] of [["cash","存款"],["mood","心态"],["opp","机会"],["fam","家人"]]){
+    if(fx[k]) parts.push(`<span class="${fx[k]>0?"up":"dn"}">${label} ${fx[k]>0?"+":""}${fx[k]}</span>`);
+  }
+  fb.innerHTML=fbHtml+`<div class="fx">${parts.join("")}</div>`;
+  $("arena").appendChild(fb);
+  updateHud(); fb.scrollIntoView({behavior:"smooth",block:"center"});
+  S.round++;
+  if(S.round===2){ setTimeout(openClash,1400); }
+  else setTimeout(nextRound,1600);
+}
+
+/* 打字回怼：AI 以答主人格即兴接招（/api/rebuttal） */
+async function sendRebuttal(r,ft){
+  const inp=ft.querySelector("#ftInput");
+  const text=inp.value.trim(); if(!text||inp.disabled) return;
+  ft.querySelector("#ftSend").disabled=true; inp.disabled=true; inp.value="接招中…";
+  document.querySelectorAll(".opt").forEach(x=>{x.disabled=true;x.style.opacity=.5});
+  ft.remove();
+  const t=S.topic;
+  try{
+    const res=await fetch("/api/rebuttal",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({dilemma:t.q, roundText:r.text.replace(/<[^>]+>/g,""), playerText:text,
+        advisors:t.advisors.map(a=>({id:a.id,name:a.name,bio:a.bio}))})});
+    if(!res.ok) throw new Error("rebuttal "+res.status);
+    const d=await res.json();
+    snd.stamp();
+    const advById={}; t.advisors.forEach(a=>advById[a.id]=a);
+    const wrap=document.createElement("div");
+    wrap.innerHTML=d.lines.map(l=>{const a=advById[l.by];return `<div class="rebut">
+      <div class="ava" style="border-color:${a.color};color:${a.color}">${a.ch}</div>
+      <div class="rb"><div class="who">${a.name}<span class="tag">接你的招</span></div><p>${l.text}</p></div></div>`;}).join("");
+    [...wrap.children].forEach(c=>$("arena").appendChild(c));
+    const fxMap={strong:{mood:8,opp:4},partial:{mood:3,opp:1},weak:{mood:-6,opp:-2}};
+    const fx=fxMap[d.impact]||fxMap.partial;
+    const impactTxt={strong:"你的回怼击中要害，对面让步了",partial:"有道理，但被抓住了漏洞",weak:"这记回怼被轻松驳回"}[d.impact];
+    applyAndAdvance(fx, "亲口回怼："+text.slice(0,18), `<b>${impactTxt}。</b>${d.summary}`, d.lines.map(l=>l.by));
+  }catch(e){
+    applyAndAdvance({mood:2}, "试图回怼："+text.slice(0,16),
+      `<b>答主们一时语塞。</b>（网络抖动，这句回怼不计入战况）`, []);
+  }
+}
+
+function tickVotes(id,delta){
+  S.votes[id]+=delta;
+  const el=$("v-"+id); if(!el) return;
+  el.textContent="▲ "+fmtVotes(S.votes[id]);
+  el.classList.remove("tick"); void el.offsetWidth; el.classList.add("tick");
+}
+
+/* ═══════════ 对线 ═══════════ */
+let timerIv=null, clashResolved=false;
+function openClash(){
+  clashResolved=false;
+  const c=S.topic.clash;
+  $("clashLA").textContent=c.L.name; $("clashLp").textContent=c.L.p;
+  $("clashRA").textContent=c.R.name; $("clashRp").textContent=c.R.p;
+  $("pickL").textContent=c.L.btn; $("pickR").textContent=c.R.btn;
+  $("clash").classList.add("open"); snd.alarm();
+  const tf=$("tfill"); let tl=6.0;
+  tf.style.transition="none"; tf.style.width="100%"; tf.classList.remove("hot");
+  setTimeout(()=>{ tf.style.transition="width 6s linear"; tf.style.width="0%"; },50);
+  timerIv=setInterval(()=>{
+    tl-=0.1;
+    if(tl<=2) tf.classList.add("hot");
+    if(tl<=0){ clearInterval(timerIv); resolveClash(null); }
+  },100);
+}
+$("pickL").addEventListener("click",()=>resolveClash("L"));
+$("pickR").addEventListener("click",()=>resolveClash("R"));
+function resolveClash(side){
+  if(clashResolved) return; clashResolved=true;
+  if(timerIv){clearInterval(timerIv);timerIv=null;}
+  const c=S.topic.clash;
+  let fx,text;
+  if(side){ fx=side==="L"?c.L.fx:c.R.fx; text=`你站了<b>${side==="L"?c.L.name:c.R.name}</b>。全场安静了一秒，然后有人默默点了个赞。`; }
+  else { fx={mood:-8}; text="6 秒到了，你没有站队。<b>弃权也是一种立场</b>——最贵的那种。"; snd.lose(); }
+  if(side) snd.stamp();
+  for(const k of ["cash","mood","opp","fam"]) S.meters[k]=Math.max(0,Math.min(100,S.meters[k]+(fx[k]||0)));
+  S.scale+=fx.scale||0;
+  S.log.push(side?("对线站队："+(side==="L"?c.L.name:c.R.name)):"对线弃权");
+  $("clash").classList.remove("open");
+  const fb=document.createElement("div"); fb.className="feedback";
+  fb.innerHTML=`<b>对线结束：</b>${text}`;
+  $("arena").appendChild(fb); updateHud();
+  fb.scrollIntoView({behavior:"smooth",block:"center"});
+  setTimeout(nextRound,1600);
+}
+
+/* ═══════════ 推演 ═══════════ */
+function finishHearth(){
+  updateHud();
+  setTimeout(()=>{
+    show("screen-run"); renderStrip();
+    $("runToast").classList.remove("show");
+    renderMonthCard();
+  },1500);
+}
+function renderStrip(){
+  const strip=$("monthStrip"); strip.innerHTML="";
+  S.topic.months.forEach((_,i)=>{
+    const d=document.createElement("div");
+    d.className="mdot"+(i<S.monthIdx?" done":i===S.monthIdx?" now":"");
+    strip.appendChild(d);
+  });
+  $("monthLab").textContent = S.monthIdx < S.topic.months.length
+    ? `${S.topic.months[S.monthIdx].m} / 共 ${S.topic.months.length} 个月` : "推演结束";
+}
+function renderMonthCard(){
+  const card=$("swcard");
+  if(S.monthIdx>=S.topic.months.length){ finishRun(); return; }
+  const m=S.topic.months[S.monthIdx];
+  card.style.transition="none"; card.style.transform="none"; card.style.opacity=1;
+  card.innerHTML=`<span class="src-tag">${m.src}</span>
+    <p>${m.text}</p>
+    <div class="acts"><span class="l">← ${m.L.t}</span><span class="r">${m.R.t} →</span></div>`;
+  S.swiped=false;
+}
+function bindSwipe(){
+  const card=$("swcard"), zone=$("swz");
+  let dragging=false,sx=0,dx=0;
+  card.addEventListener("pointerdown",e=>{
+    if(S.swiped) return; dragging=true; sx=e.clientX; card.setPointerCapture(e.pointerId);
+  });
+  card.addEventListener("pointermove",e=>{
+    if(!dragging) return; dx=e.clientX-sx;
+    card.style.transform=`translateX(${dx}px) rotate(${dx*0.03}deg)`;
+  });
+  card.addEventListener("pointerup",()=>{
+    if(!dragging) return; dragging=false;
+    if(Math.abs(dx)>80) commitSwipe(dx>0?"R":"L");
+    else{ card.style.transition="transform .25s"; card.style.transform="none"; }
+  });
+  zone.addEventListener("click",e=>{
+    if(S.swiped) return;
+    const r=zone.getBoundingClientRect();
+    if(e.clientX<r.left+r.width*0.25) commitSwipe("L");
+    else if(e.clientX>r.right-r.width*0.25) commitSwipe("R");
+  });
+}
+function commitSwipe(side){
+  if(S.swiped) return; S.swiped=true;
+  const m=S.topic.months[S.monthIdx], o=side==="R"?m.R:m.L;
+  snd.whoosh();
+  const card=$("swcard");
+  card.style.transition="transform .35s ease,opacity .35s";
+  card.style.transform=`translateX(${side==="R"?480:-480}px) rotate(${side==="R"?18:-18}deg)`;
+  card.style.opacity=0;
+  for(const k of ["cash","mood","opp","fam"]) S.meters[k]=Math.max(0,Math.min(100,S.meters[k]+(o.fx[k]||0)));
+  S.log.push(o.log);
+  let delayedHtml="";
+  if(m.R.delay && m.R.log===o.log && side==="R"){ delayedHtml=`<div class="delayed">${m.R.delay}</div>`;
+    S.meters.mood=Math.max(0,S.meters.mood-10); S.log.push("延迟后果引爆："+m.R.delay.slice(0,18)+"…"); }
+  const toast=$("runToast");
+  toast.innerHTML=`<b>${m.m} 结算：</b>你选择了「${o.t.replace(/[←→]/g,"").trim()}」${delayedHtml}`;
+  toast.classList.add("show");
+  updateHud();
+  S.monthIdx++;
+  setTimeout(()=>{
+    const min=Math.min(S.meters.cash,S.meters.mood,S.meters.opp,S.meters.fam);
+    if(min<=20 && !S.crisisUsed){ S.crisisUsed=true; openCrisis(); }
+    else{ renderStrip(); renderMonthCard(); toast.classList.remove("show"); }
+  },1900);
+}
+bindSwipe();
+
+/* ═══════════ 危机 ═══════════ */
+function openCrisis(){
+  snd.alarm();
+  $("crisisTitle").textContent="有一条线，已经见底了";
+  $("crisisDesc").textContent="四项里最低的那项，亮了红灯。现实开始收网——你还有最后一次主动权，怎么用？";
+  const box=$("crisisOpts"); box.innerHTML="";
+  [
+    {t:"向家人摊牌，借一笔过桥钱",fx:{cash:+22,fam:-12,mood:+6},log:"危机中向家人摊牌借钱"},
+    {t:"死扛，白天投简历晚上接零活",fx:{cash:+8,mood:-10,opp:+8},log:"危机中选择死扛硬撑"},
+    {t:"暂停推演的计划，回去上班",fx:{cash:+14,mood:-6,scale:14},log:"危机中暂停计划回去上班"},
+  ].forEach(o=>{
+    const b=document.createElement("button");
+    b.textContent=o.t;
+    b.addEventListener("click",()=>{
+      for(const k of ["cash","mood","opp","fam"]) if(o.fx[k]) S.meters[k]=Math.max(0,Math.min(100,S.meters[k]+o.fx[k]));
+      if(o.fx.scale) S.scale+=o.fx.scale;
+      S.log.push(o.log); snd.stamp();
+      $("crisis").classList.remove("open");
+      updateHud(); renderStrip(); renderMonthCard();
+      $("runToast").classList.remove("show");
+    });
+    box.appendChild(b);
+  });
+  $("crisis").classList.add("open");
+}
+
+/* ═══════════ 命运卡 ═══════════ */
+function finishRun(){
+  const t=S.topic;
+  const min=Math.min(S.meters.cash,S.meters.mood,S.meters.opp,S.meters.fam);
+  const e = min<=20 ? t.endings.crash : S.scale<-8 ? t.endings.bold : S.scale>8 ? t.endings.steady : t.endings.fence;
+  if(min<=25) snd.lose(); else snd.win();
+  $("fateTitle").textContent="「"+e.t+"」";
+  $("fateVerdict").textContent=e.v;
+  $("fateTl").innerHTML=S.log.slice(0,8).map(l=>`<div>${l}</div>`).join("");
+  const adv=t.advisors[0];
+  $("fateQuote").textContent=`${adv.name}（${adv.bio}）：${adv.open.replace(/<[^>]+>/g,"")}`;
+  $("fate").classList.add("open");
+  S.fateTitle=e.t;
+}
+$("againBtn").addEventListener("click",()=>{ location.reload(); });
+$("backBtn").addEventListener("click",()=>{ location.reload(); });
+/* 分享图：Canvas 绘制命运卡 PNG */
+function wrapText(ctx,text,x,y,maxW,lh){
+  let line="",yy=y;
+  for(const ch of text){
+    if(ctx.measureText(line+ch).width>maxW){ ctx.fillText(line,x,yy); line=ch; yy+=lh; }
+    else line+=ch;
+  }
+  if(line) ctx.fillText(line,x,yy);
+  return yy+lh;
+}
+$("imgBtn").addEventListener("click",()=>{
+  const cv=document.createElement("canvas"); cv.width=750; cv.height=1010;
+  const ctx=cv.getContext("2d");
+  const SERIF='"Noto Serif SC","Source Han Serif SC","STZhongsong","STSong","SimSun",serif';
+  const SANS='"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillStyle="#f7f2e9"; ctx.fillRect(0,0,750,1010);
+  ctx.fillStyle="rgba(182,132,61,.06)"; ctx.fillRect(0,0,750,1010);
+  const g=ctx.createLinearGradient(0,0,750,190);
+  g.addColorStop(0,"#2a251c"); g.addColorStop(1,"#57431f");
+  ctx.fillStyle=g; ctx.fillRect(0,0,750,190);
+  ctx.fillStyle="rgba(243,234,217,.55)"; ctx.font="600 17px "+SANS;
+  ctx.fillText("一 年 后 · 命 运 档 案",60,64);
+  ctx.fillStyle="#f3ead9"; ctx.font="700 21px "+SANS;
+  ctx.fillText("岔路口 · 知乎围炉",60,102);
+  ctx.fillStyle="rgba(243,234,217,.7)"; ctx.font="400 15px "+SANS;
+  ctx.fillText("把「"+(S.topic.q||"").slice(0,22)+"…」推演了一遍",60,142);
+  ctx.fillStyle="#b44632"; ctx.textAlign="center"; ctx.font="800 52px "+SERIF;
+  ctx.fillText("「"+(S.fateTitle||"??")+"」",375,290);
+  ctx.fillStyle="#4a443a"; ctx.textAlign="left"; ctx.font="400 20px "+SERIF;
+  const vEnd=wrapText(ctx,$("fateVerdict").textContent,75,340,600,34);
+  let ty=vEnd+16;
+  ctx.fillStyle="#9b9284"; ctx.font="600 15px "+SANS; ctx.fillText("这一年的关键选择",75,ty); ty+=30;
+  ctx.font="400 17px "+SERIF; ctx.fillStyle="#5d574c";
+  S.log.slice(0,5).forEach(l=>{ ctx.fillText("· "+l.slice(0,22),90,ty); ty+=30; });
+  ty+=14;
+  ctx.fillStyle="rgba(49,91,115,.07)"; ctx.fillRect(60,ty,630,118);
+  ctx.fillStyle="#315b73"; ctx.fillRect(60,ty,4,118);
+  ctx.fillStyle="#315b73"; ctx.font="400 16px "+SERIF;
+  wrapText(ctx,$("fateQuote").textContent.slice(0,90),84,ty+34,580,27);
+  ctx.fillStyle="#9b9284"; ctx.font="400 14px "+SANS; ctx.textAlign="center";
+  ctx.fillText("知乎黑客松 · 跨次元游乐场 | 你的困境，会是什么命运？",375,965);
+  const a=document.createElement("a");
+  a.download="岔路口-命运卡.png"; a.href=cv.toDataURL("image/png"); a.click();
+  $("imgBtn").textContent="已生成 ✓";
+  setTimeout(()=>$("imgBtn").textContent="保存分享图",2500);
+});
+
+loadHot();
+</script>
+</body>
+</html>
