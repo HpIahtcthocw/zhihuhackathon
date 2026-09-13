@@ -197,6 +197,17 @@
   .fx .up{background:rgba(102,112,90,.15);color:var(--olive)}
   .fx .dn{background:rgba(180,70,50,.12);color:var(--red)}
 
+  /* 围观弹幕 */
+  .danmu{position:fixed;z-index:35;font-family:var(--sans);font-size:12px;color:var(--ink-2);
+    background:rgba(33,29,22,.07);padding:5px 14px;border-radius:20px;pointer-events:none;
+    white-space:nowrap;animation:dmv 4.5s linear forwards}
+  @keyframes dmv{from{transform:translateX(0);opacity:0}8%{opacity:.95}85%{opacity:.9}to{transform:translateX(-115vw);opacity:0}}
+
+  /* 看山司仪 */
+  .host{font-family:var(--sans);font-size:12px;color:var(--amber);text-align:center;
+    margin:14px 0 4px;line-height:1.8}
+  .host::before{content:"🦊 ";}
+
   /* 回怼输入 */
   .freetext{display:flex;gap:10px;margin-bottom:14px;animation:cardIn .35s ease both}
   .freetext input{flex:1;border:1.5px solid var(--line);border-radius:12px;background:var(--card);
@@ -382,7 +393,7 @@
   <section class="compiling" id="compiling">
     <div class="ring"></div>
     <p class="kicker" id="compDilemma" style="margin:0 auto 12px;max-width:32em;line-height:2"></p>
-    <p>正在把你的困境编译成一场围炉…<br><b id="compilingTip">拉取真实争议 · 孵化四位答主</b></p>
+    <p>看山正搬着四把椅子入席…<br><b id="compilingTip">拉取真实争议 · 孵化四位答主</b></p>
   </section>
 
   <!-- 第1屏：约束配置 -->
@@ -492,6 +503,28 @@
 </div>
 
 <script>
+/* ═══════════ 围观弹幕 + 看山司仪 ═══════════ */
+const CROWD=[
+  "围观群众：这题我熟，蹲一个后续","围观群众：先mark，明早来抄作业","围观群众：楼上两位吵得好看",
+  "围观群众：已截图发家庭群","围观群众：这波我先站为敬","围观群众：匿名用户投了冒险一票",
+  "围观群众：过来人默默路过","围观群众：这存款水位我羡慕了","围观群众：编剧敢不敢再狠一点",
+  "围观群众：理性讨论，别上升家人","围观群众：蹲结局，我押稳","围观群众：看山记得管管场面",
+];
+function danmu(){
+  const el=document.createElement("div");
+  el.className="danmu";
+  el.textContent=CROWD[Math.floor(Math.random()*CROWD.length)];
+  el.style.right="-10px";
+  el.style.top=(18+Math.random()*30)+"vh";
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),4600);
+}
+function hostSay(text){
+  const d=document.createElement("div");
+  d.className="host"; d.textContent=text;
+  return d;
+}
+
 /* ═══════════ 音效 ═══════════ */
 let AC=null, muted=false;
 function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} } return AC; }
@@ -770,6 +803,11 @@ async function loadHot(){
       box.appendChild(d);
     });
     $("hotNote").textContent="以上问题来自知乎开放平台实时数据 · 点击任一困境，AI 为你现场编译围炉";
+    // 后台预热：提前编译前 2 条（命中服务端 24h 缓存 → 玩家点开时秒进）
+    items.slice(0,2).forEach(it=>{
+      fetch("/api/forge",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({dilemma:it.title,save:"6m",time:"mid",back:"no"})}).catch(()=>{});
+    });
   }else{
     HOT_KEYS.forEach((k,i)=>{
       const t=TOPICS[k];
@@ -893,6 +931,7 @@ function renderHearth(){
     box.appendChild(d);
   });
   $("arena").innerHTML="";
+  $("arena").appendChild(hostSay("看山敲了敲桌：围炉开始。今晚只讨论"+(S.topic.q||"").slice(0,18)+"这一件事。"));
   show("screen-hearth"); showHud(true);
   updateHud();
   setTimeout(nextRound, 1600 + t.advisors.length*120);
@@ -963,6 +1002,7 @@ function applyAndAdvance(fx,logEntry,fbHtml,vtIds){
   }
   fb.innerHTML=fbHtml+`<div class="fx">${parts.join("")}</div>`;
   $("arena").appendChild(fb);
+  danmu(); setTimeout(danmu,700);
   updateHud(); fb.scrollIntoView({behavior:"smooth",block:"center"});
   S.round++;
   if(S.round===2){ setTimeout(openClash,1400); }
