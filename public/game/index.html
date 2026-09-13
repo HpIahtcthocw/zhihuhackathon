@@ -399,8 +399,9 @@
   <section id="screen-setup" class="hide">
     <div class="setup">
       <div class="kicker">STEP 1 / 1 · 你的牌面</div>
-      <h2 id="setupTitle">入席前，答主想先看你的三张底牌</h2>
-      <p class="sub">这三个答案会当场决定你的处境，也会被答主引用来怼你——他们记性很好，十二个月里每次都会翻出来考你。</p>
+      <h2 id="setupTitle">入席前，先对齐三件事</h2>
+      <p class="sub" id="setupSub">你现在的存款、时间、退路——处境不同，围炉的谈法和结局都不同。</p>
+      <p class="sub hide" id="offlineNote" style="color:var(--amber)">※ 当前为离线演示剧本（历史抓取数据），联网后会为你实时编译。</p>
       <div class="cgroup">
         <div class="gl">💰 存款水位</div>
         <div class="seg" id="segSave">
@@ -507,7 +508,7 @@
 const CROWD=[
   "围观群众：这题我熟，蹲一个后续","围观群众：先mark，明早来抄作业","围观群众：楼上两位吵得好看",
   "围观群众：已截图发家庭群","围观群众：这波我先站为敬","围观群众：匿名用户投了冒险一票",
-  "围观群众：过来人默默路过","围观群众：这存款水位我羡慕了","围观群众：编剧敢不敢再狠一点",
+  "围观群众：过来人默默路过","围观群众：这存款水位我羡慕了","围观群众：别吵了，让他自己说完",
   "围观群众：理性讨论，别上升家人","围观群众：蹲结局，我押稳","围观群众：看山记得管管场面",
 ];
 function danmu(){
@@ -826,12 +827,12 @@ async function loadHot(){
 
 function pickDilemma(text){
   pendingForge={dilemma:text}; pendingTopic=null;
-  $("setupTitle").textContent="开工前，先摸清你的牌";
+  $("offlineNote").classList.add("hide");
   show("screen-setup"); showHud(false);
 }
 function startScripted(topic){
   pendingTopic=topic; pendingForge=null;
-  $("setupTitle").textContent="开工前，先摸清你的牌（离线快照）";
+  $("offlineNote").classList.remove("hide");
   show("screen-setup"); showHud(false);
 }
 
@@ -967,14 +968,14 @@ function nextRound(){
   r.opts.forEach((o,i)=>{
     const b=document.createElement("button");
     b.className="opt"; b.style.animationDelay=(i*0.08)+"s";
-    b.innerHTML=`${o.t}<small>选择后不可撤回 · 全场都在看</small>`;
+    b.innerHTML=`${o.t}<small>选定后本局不可更改</small>`;
     b.addEventListener("click",()=>chooseOption(r,o,b));
     og.appendChild(b);
   });
   arena.appendChild(og);
   const ft=document.createElement("div"); ft.className="freetext";
-  ft.innerHTML=`<input id="ftInput" maxlength="80" placeholder="不服？亲口回怼——AI 答主即兴接招">
-    <button id="ftSend">回 怼</button>`;
+  ft.innerHTML=`<input id="ftInput" maxlength="80" placeholder="不认同？直接打字回他们（可选）">
+    <button id="ftSend">说这话</button>`;
   arena.appendChild(ft);
   ft.querySelector("#ftSend").addEventListener("click",()=>sendRebuttal(r,ft));
   ft.querySelector("#ftInput").addEventListener("keydown",e=>{ if(e.key==="Enter") sendRebuttal(r,ft); });
