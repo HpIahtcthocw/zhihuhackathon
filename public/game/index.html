@@ -348,7 +348,10 @@
 <div class="topbar">
   <div class="wrap">
     <div class="logo">岔路口<i>。</i><span class="v">知乎围炉 v0.3</span></div>
-    <button class="mute" id="muteBtn">🔊 音效</button>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="mute" id="loginBtn" style="display:none;background:var(--zh-blue);color:#fff;border-color:var(--zh-blue);font-weight:600">知乎登录</button>
+      <button class="mute" id="muteBtn">🔊 音效</button>
+    </div>
   </div>
 </div>
 
@@ -1343,6 +1346,40 @@ $("luckyBtn").addEventListener("click",luckyDraw);
 
 renderGallery();
 loadHot();
+
+/* 知乎登录（人气奖入口） */
+(async ()=>{
+  // 回调欢迎
+  const qs=new URLSearchParams(location.search);
+  const welcome=qs.get("welcome");
+  if(welcome){
+    localStorage.setItem("zhName",welcome);
+    history.replaceState(null,"","/");
+    const el=document.createElement("div");
+    el.style.cssText="position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:130;background:var(--zh-blue);color:#fff;font-size:12.5px;padding:10px 20px;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.25)";
+    el.textContent="知乎登录成功，欢迎 "+welcome+"。你的围炉战绩会和昵称一起被记住。";
+    document.body.appendChild(el); setTimeout(()=>el.remove(),3600);
+  }
+  if(qs.get("oauth")==="unconfigured"){
+    const el=document.createElement("div");
+    el.style.cssText="position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:130;background:#211d16;color:#f7f2e9;font-size:12px;padding:9px 18px;border-radius:20px";
+    el.textContent="知乎登录配置中，敬请期待";
+    document.body.appendChild(el); setTimeout(()=>el.remove(),2600);
+  }
+  // 凭证已配置才显示登录按钮
+  try{
+    const r=await fetch("/api/auth/zhihu",{redirect:"manual"});
+    if(r.type==="opaqueredirect"||r.status===302||r.status===0){
+      const loc=r.headers?.get?.("location")||"";
+      if(!loc.includes("oauth=unconfigured")){
+        $("loginBtn").style.display="inline-block";
+        const saved=localStorage.getItem("zhName");
+        if(saved&&welcome){ $("loginBtn").textContent=saved; $("loginBtn").disabled=true; }
+      }
+    }
+  }catch(e){}
+})();
+$("loginBtn").addEventListener("click",()=>{ location.href="/api/auth/zhihu"; });
 </script>
 </body>
 </html>
