@@ -58,9 +58,14 @@ const SYSTEM = `你是知乎黑客松参赛作品《岔路口》的「围炉编�
 8. 只输出 JSON，不要任何解释文字。`;
 
 function userPrompt(input: ForgeInput, driftFeedback?: string): string {
-  const cons = `存款水位=${input.save ?? "6m"}（3m=紧张/6m=尚可/12m=充裕）, 时间窗口=${input.time ?? "mid"}（urgent=很急/mid=半年/loose=一年以上）, 退路=${input.back ?? "no"}（yes=有退路/no=破釜沉舟）`;
+  const CONS_TXT = {
+    save: { "3m": "存款只够 3 个月生活费，很紧张", "6m": "存款够 6 个月生活费，有点底气但不奢侈", "12m": "存款够 12 个月以上，弹药充裕" },
+    time: { urgent: "时间窗口很急，机会再拖就过期", mid: "时间窗口约半年，还有得想", loose: "时间窗口一年以上，输得起时间" },
+    back: { yes: "有退路，大不了回头", no: "没有退路，破釜沉舟" },
+  } as const;
+  const cons = `${CONS_TXT.save[(input.save ?? "6m") as keyof typeof CONS_TXT.save] ?? CONS_TXT.save["6m"]}；${CONS_TXT.time[(input.time ?? "mid") as keyof typeof CONS_TXT.time] ?? CONS_TXT.time.mid}；${CONS_TXT.back[(input.back ?? "no") as keyof typeof CONS_TXT.back] ?? CONS_TXT.back.no}`;
   return `${driftFeedback ?? ""}用户的困境：「${input.dilemma}」
-用户的牌面：${cons}
+用户的处境：${cons}
 
 JSON 的 "q" 字段已由系统固定，直接原样输出「${input.dilemma}」，不要改写、不要扩写。其余所有字段（advisors/rounds/clash/months/endings）必须逐字围绕「${input.dilemma}」中的具体抉择展开，禁止替换成别的困境、禁止增加用户没说的前提（不要虚构城市、薪资、存款数字）。
 
@@ -81,7 +86,8 @@ JSON 的 "q" 字段已由系统固定，直接原样输出「${input.dilemma}」
 A. 所有字段是否严格围绕「${input.dilemma}」？有没有偷换主题、虚构用户没说的前提？
 B. 每个 opt 是否 20-35 字且含具体动作+代价？
 C. 每个 advisor 的 open 是否以知乎体开场白起手？
-D. 输出是否为纯 JSON（无 markdown 围栏、无解释）？`;
+D. 是否输出了纯 JSON（无 markdown 围栏、无解释文字）？
+E. 全文是否没有任何代码/参数字面量（如「6m」「mid」「no」「save」）？约束必须转译成生活中文（如「存款只够撑半年」）。`;
 }
 
 /* 偏题检测：从困境中抽 CJK 二元组，检查输出正文（不含 q）的重合率。
@@ -219,22 +225,29 @@ export async function POST(req: NextRequest) {
       return Response.json({ topic: hit.topic, cached: true, source: "llm" });
     }
 
-    // 最多两次：第二次带上偏题反馈重试
+    // 最多三次：解析失败 / 校验失败 / 偏题都触发带反馈重试
+    const ALLOWED = ["qwen3.8-max-0902", "kimi-k3", "qwen3.8-max", "qwen3.7-max", "qwen-turbo", "qwen3.8-flash", "qwen-max"];
+    const testModel = ALLOWED.includes(String((body as Record<string, unknown>).model))
+      ? String((body as Record<string, unknown>).model) : undefined;
     let topic: ForgeTopic | null = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const feedback =
-        attempt === 0
-          ? undefined
-          : `注意：你上一次的输出严重偏题，几乎没有围绕「${dilemma}」作答。重新编译，所有字段必须逐字围绕这个困境本身。\n\n`;
-      const raw = await complete(SYSTEM, userPrompt(body, feedback), 4000);
-      console.log(`[forge] raw head: ${raw.slice(0, 120).replace(/\n/g, " ")}`);
-      const t = validate(extractJSON(raw), body);
-      t.q = dilemma; // q 锚定为用户原话，杜绝标题漂移
-      const drift = driftRatio(t, dilemma);
-      console.log(`[forge] attempt=${attempt + 1} drift=${drift.toFixed(2)}`);
-      if (drift <= 0.65) { topic = t; break; }
+    let lastErr = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const feedback = attempt === 0 ? undefined
+        : `你上一次的输出存在以下问题：「${lastErr}」。请重新完整输出全部字段的合法 JSON（advisors 恰好4个、rounds 恰好3轮且每轮恰好2个opts、clash、months 恰好4个、endings 四种齐全），不要重犯。`;
+      try {
+        const raw = await complete(SYSTEM, userPrompt(body, feedback), 6500, testModel);
+        const t = validate(extractJSON(raw), body);
+        t.q = dilemma; // q 锚定为用户原话，杜绝标题漂移
+        const drift = driftRatio(t, dilemma);
+        console.log(`[forge] attempt=${attempt + 1} drift=${drift.toFixed(2)}`);
+        if (drift <= 0.65) { topic = t; break; }
+        lastErr = "内容与困境无关，严重偏题";
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message.slice(0, 120) : String(e);
+        console.log(`[forge] attempt=${attempt + 1} 失败: ${lastErr}`);
+      }
     }
-    if (!topic) throw new Error("两次编译均偏题，已拦截");
+    if (!topic) throw new Error(`三次编译均失败（${lastErr}）`);
 
     cache.set(key, { topic, at: Date.now() });
     return Response.json({ topic, cached: false, source: "llm" });

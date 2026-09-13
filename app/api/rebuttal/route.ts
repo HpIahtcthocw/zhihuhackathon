@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
-import { complete, extractJSON } from "@/lib/llm";
+import { completeFast, extractJSON } from "@/lib/llm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ function validate(raw: unknown, input: Input): Output {
 }
 
 /* 交锋质量 → 确定性数值（LLM 不直接决定数值） */
-export const IMPACT_FX: Record<Output["impact"], { mood: number; opp: number }> = {
+const IMPACT_FX: Record<Output["impact"], { mood: number; opp: number }> = {
   strong: { mood: 8, opp: 4 },
   partial: { mood: 3, opp: 1 },
   weak: { mood: -6, opp: -2 },
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ ...hit.out, cached: true });
     }
 
-    const raw = await complete(SYSTEM, prompt(body), 1200);
+    const raw = await completeFast(SYSTEM, prompt(body), 1200);
     const out = validate(extractJSON(raw), body);
     cache.set(key, { out, at: Date.now() });
     return Response.json(out);
