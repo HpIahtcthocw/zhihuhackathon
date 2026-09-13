@@ -20,7 +20,7 @@ const TTL = 3600 * 1000;
 let cache: { at: number; items: HotItem[] } | null = null;
 let stale: { at: number; items: HotItem[] } | null = null;
 
-const QUERIES = ["要不要裸辞", "该不该转行", "考研还是工作", "大城市还是老家"];
+const QUERIES = ["要不要裸辞", "考研还是工作", "该不该结婚", "精神内耗 失眠", "存款 安全感", "原生家庭 父母"];
 
 async function fetchHotList(secret: string): Promise<HotItem[]> {
   const url = new URL("https://developer.zhihu.com/api/v1/content/hot_list");

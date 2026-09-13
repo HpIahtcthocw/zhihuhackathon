@@ -203,6 +203,14 @@
     white-space:nowrap;animation:dmv 4.5s linear forwards}
   @keyframes dmv{from{transform:translateX(0);opacity:0}8%{opacity:.95}85%{opacity:.9}to{transform:translateX(-115vw);opacity:0}}
 
+  /* 看山抽签 + 命运图鉴 */
+  .lrow{display:flex;gap:12px;margin-top:12px;align-items:center}
+  .lbtn{flex:1;border:1.5px dashed var(--ink-2);background:var(--paper-2, #efe8da);border-radius:12px;
+    padding:12px;font-family:var(--serif);font-size:14px;font-weight:700;color:var(--ink);transition:all .15s}
+  .lbtn:hover{border-color:var(--ink);transform:translateY(-1px)}
+  .galley{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);white-space:nowrap;
+    border:1px solid var(--line);border-radius:20px;padding:8px 14px;background:var(--card)}
+
   /* 看山司仪 */
   .host{font-family:var(--sans);font-size:12px;color:var(--amber);text-align:center;
     margin:14px 0 4px;line-height:1.8}
@@ -376,6 +384,10 @@
       <div class="sub" id="hotNote" style="padding:0 24px 12px;font-size:11px;color:var(--ink-3)">正在拉取知乎实时数据…</div>
       <div id="hotList"></div>
     </div>
+    <div class="lrow">
+      <button class="lbtn" id="luckyBtn">🎲 看山抽签 —— 随机围炉一个当下困境</button>
+      <span class="galley" id="galleryTag">命运图鉴 · 已收集 0 种</span>
+    </div>
     <div class="custom">
       <h3>你的困境不在榜上？</h3>
       <p class="sub">用一句话写下你正卡住的决定——围炉为你现场编译。</p>
@@ -472,6 +484,7 @@
     <p class="verdict" id="fateVerdict"></p>
     <div class="tl" id="fateTl"></div>
     <div class="quote" id="fateQuote"></div>
+    <div class="galley" id="fateGalleryTag" style="display:block;text-align:center;margin-bottom:14px"></div>
     <div class="quote" id="zhidaBox" style="display:none;background:rgba(182,132,61,.08);border-left-color:var(--amber)"></div>
     <div class="btns">
       <button class="again" id="againBtn">换个困境再来</button>
@@ -783,6 +796,7 @@ async function loadHot(){
       box.appendChild(d);
     });
     $("hotNote").textContent="以上问题来自知乎开放平台实时数据 · 点击任一困境，AI 为你现场编译围炉";
+    hotItemsCache=items;
     // 后台预热：提前编译前 2 条（命中服务端 24h 缓存 → 玩家点开时秒进）
     items.slice(0,2).forEach(it=>{
       fetch("/api/forge",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -800,6 +814,7 @@ async function loadHot(){
       box.appendChild(d);
     });
     $("hotNote").textContent="实时热榜暂不可用，已切换离线演示快照（数据为历史抓取，非实时）";
+    hotItemsCache=[];
   }
 }
 
@@ -1238,6 +1253,8 @@ function finishRun(){
   $("fateQuote").textContent=`${adv.name}（${adv.bio}）：${adv.open.replace(/<[^>]+>/g,"")}`;
   $("fate").classList.add("open");
   S.fateTitle=e.t;
+  recordFate(e.t);
+  { const g=gallery(); $("fateGalleryTag").textContent=`🖼 命运图鉴：已收集 ${Object.keys(g).length} 种命运 · 本局称号${g[e.t]>1?"是第 "+g[e.t]+" 次抽中":"首次解锁"}`; }
   // 知乎直答 · 官方参考口径（失败静默隐藏）
   const zb=$("zhidaBox");
   zb.style.display="none";
@@ -1298,6 +1315,33 @@ $("imgBtn").addEventListener("click",()=>{
   setTimeout(()=>$("imgBtn").textContent="保存分享图",2500);
 });
 
+
+/* ═══════════ 命运图鉴 + 看山抽签 ═══════════ */
+function gallery(){ try{ return JSON.parse(localStorage.getItem("fateGallery")||"{}"); }catch(e){ return {}; } }
+function renderGallery(){
+  const g=gallery(); const n=Object.keys(g).length;
+  $("galleryTag").textContent=`命运图鉴 · 已收集 ${n} 种命运`;
+}
+function recordFate(title){
+  if(!title) return;
+  const g=gallery(); g[title]=(g[title]||0)+1;
+  try{ localStorage.setItem("fateGallery",JSON.stringify(g)); }catch(e){}
+  renderGallery();
+}
+function luckyDraw(){
+  const items=[...document.querySelectorAll("#hotList .hot-item")].filter((_,i)=>{
+    const meta=hotItemsCache[i]; return meta && (meta.isHot || (meta.votes||0)>=20);
+  });
+  const pool = items.length ? items.map((_,i)=>i) : [];
+  if(!pool.length) return;
+  const pick=pool[Math.floor(Math.random()*pool.length)];
+  snd.tick();
+  document.querySelectorAll("#hotList .hot-item")[pick].click();
+}
+let hotItemsCache=[];
+$("luckyBtn").addEventListener("click",luckyDraw);
+
+renderGallery();
 loadHot();
 </script>
 </body>
