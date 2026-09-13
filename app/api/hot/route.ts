@@ -14,9 +14,11 @@ type HotItem = {
   isHot?: boolean; // 来自知乎真热榜 hot_list
 };
 
-/* 热榜缓存：1 小时。热榜 100 次/天、搜索 1000 次/天，必须省着用 */
+/* 热榜缓存：1 小时。热榜 100 次/天、搜索 1000 次/天，必须省着用。
+   刷新失败（限频/网络）时回退最近一份成功数据（stale 兜底），避免整页降级离线剧本。 */
 const TTL = 3600 * 1000;
 let cache: { at: number; items: HotItem[] } | null = null;
+let stale: { at: number; items: HotItem[] } | null = null;
 
 const QUERIES = ["要不要裸辞", "该不该转行", "考研还是工作", "大城市还是老家"];
 
@@ -52,8 +54,17 @@ export async function GET(_req: NextRequest) {
   if (cache && Date.now() - cache.at < TTL) {
     return Response.json({ items: cache.items, cached: true });
   }
+  const fallBack = (reason: string) => {
+    console.warn(`[hot] ${reason}，使用 stale 兜底`);
+    if (stale?.items.length) {
+      return Response.json({ items: stale.items, cached: true, stale: true });
+    }
+    return null;
+  };
   const secret = process.env.ZHIHU_ACCESS_SECRET;
   if (!secret) {
+    const fb = fallBack("未配置密钥");
+    if (fb) return fb;
     return Response.json({ items: [], cached: false, error: "ZHIHU_NOT_CONFIGURED" }, { status: 503 });
   }
   try {
@@ -99,10 +110,18 @@ export async function GET(_req: NextRequest) {
     const strong = searched.filter((it) => it.votes >= 40);
     const relaxed = searched.filter((it) => it.votes >= 8);
     const items = [...hot, ...(strong.length >= 4 ? strong : relaxed).slice(0, 6)];
-    if (items.length) cache = { at: Date.now(), items };
-    return Response.json({ items, cached: false });
+    if (items.length) {
+      cache = { at: Date.now(), items };
+      stale = cache;
+      return Response.json({ items, cached: false });
+    }
+    const fb = fallBack("上游返回空（可能限频 30001）");
+    if (fb) return fb;
+    return Response.json({ items: [], cached: false, error: "EMPTY" }, { status: 502 });
   } catch (err) {
     console.error("[hot] 知乎搜索失败:", err instanceof Error ? err.message : err);
+    const fb = fallBack("上游异常");
+    if (fb) return fb;
     return Response.json({ items: [], cached: false, error: "UPSTREAM_ERROR" }, { status: 502 });
   }
 }

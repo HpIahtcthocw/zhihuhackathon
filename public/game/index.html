@@ -400,31 +400,9 @@
     <div class="setup">
       <div class="kicker">STEP 1 / 1 · 你的牌面</div>
       <h2 id="setupTitle">入席前，先对齐三件事</h2>
-      <p class="sub" id="setupSub">你现在的存款、时间、退路——处境不同，围炉的谈法和结局都不同。</p>
+      <p class="sub" id="setupSub">处境不同，围炉的谈法和结局都不同。这三项由你的困境动态生成。</p>
       <p class="sub hide" id="offlineNote" style="color:var(--amber)">※ 当前为离线演示剧本（历史抓取数据），联网后会为你实时编译。</p>
-      <div class="cgroup">
-        <div class="gl">💰 存款水位</div>
-        <div class="seg" id="segSave">
-          <button data-v="3m">≈3 个月<small>裸辞第二天就心慌</small></button>
-          <button data-v="6m" class="on">≈6 个月<small>有底气但不奢侈</small></button>
-          <button data-v="12m">12 个月+<small>长期主义弹药库</small></button>
-        </div>
-      </div>
-      <div class="cgroup">
-        <div class="gl">⏳ 时间窗口</div>
-        <div class="seg" id="segTime">
-          <button data-v="urgent">很急<small>再拖就过期</small></button>
-          <button data-v="mid" class="on">半年左右<small>还有得想</small></button>
-          <button data-v="loose">一年以上<small>输得起时间</small></button>
-        </div>
-      </div>
-      <div class="cgroup">
-        <div class="gl">🎒 退路</div>
-        <div class="seg" id="segBack">
-          <button data-v="yes">有<small>大不了回去</small></button>
-          <button data-v="no" class="on">没有<small>破釜沉舟</small></button>
-        </div>
-      </div>
+      <div id="cgroups"></div>
       <button class="start" id="startBtn">入 席 围 炉</button>
     </div>
   </section>
@@ -829,11 +807,13 @@ function pickDilemma(text){
   pendingForge={dilemma:text}; pendingTopic=null;
   $("offlineNote").classList.add("hide");
   show("screen-setup"); showHud(false);
+  prepareConstraints(text);
 }
 function startScripted(topic){
   pendingTopic=topic; pendingForge=null;
   $("offlineNote").classList.remove("hide");
   show("screen-setup"); showHud(false);
+  renderConstraints(DEFAULT_CONSTRAINTS);
 }
 
 $("customText").addEventListener("input",e=>{ $("customGo").disabled=!e.target.value.trim(); });
@@ -842,25 +822,79 @@ $("customGo").addEventListener("click",()=>{
   snd.tick(); pickDilemma(t);
 });
 
-/* ═══════════ 约束配置 ═══════════ */
-function bindSeg(id,key){
-  $(id).querySelectorAll("button").forEach(b=>{
-    b.addEventListener("click",()=>{
-      $(id).querySelectorAll("button").forEach(x=>x.classList.remove("on"));
-      b.classList.add("on"); S.cons[key]=b.dataset.v; snd.tick();
+/* ═══════════ 动态约束：三个维度由困境决定 ═══════════ */
+const DEFAULT_CONSTRAINTS=[
+  {key:"save",label:"存款水位",question:"手头的钱能撑多久？",options:[
+    {v:"3m",label:"≈3 个月",desc:"很紧张",fx:{cash:-17,mood:-2,opp:0,fam:0}},
+    {v:"6m",label:"≈6 个月",desc:"有点底气",fx:{cash:3,mood:0,opp:0,fam:0}},
+    {v:"12m",label:"12 个月+",desc:"弹药充裕",fx:{cash:23,mood:2,opp:0,fam:0}}]},
+  {key:"time",label:"时间窗口",question:"这件事还剩多少时间？",options:[
+    {v:"urgent",label:"很急",desc:"再拖就过期",fx:{cash:0,mood:0,opp:-12,fam:0}},
+    {v:"mid",label:"半年左右",desc:"还有得想",fx:{cash:0,mood:0,opp:5,fam:0}},
+    {v:"loose",label:"一年以上",desc:"输得起时间",fx:{cash:0,mood:0,opp:13,fam:0}}]},
+  {key:"back",label:"退路",question:"万一不成，回得去吗？",options:[
+    {v:"yes",label:"有退路",desc:"大不了回头",fx:{cash:0,mood:9,opp:0,fam:11}},
+    {v:"no",label:"没有",desc:"破釜沉舟",fx:{cash:0,mood:-1,opp:0,fam:3}}]},
+];
+let consData=null, consChoice={};
+
+function renderConstraints(groups){
+  consData=groups; consChoice={};
+  const box=$("cgroups"); box.innerHTML="";
+  groups.forEach((g,gi)=>{
+    const div=document.createElement("div"); div.className="cgroup";
+    const gl=document.createElement("div"); gl.className="gl"; gl.textContent=g.label;
+    if(g.question){ const q=document.createElement("span"); q.textContent=" "+g.question;
+      q.style.cssText="font-weight:400;color:var(--ink-3);font-size:11.5px"; gl.appendChild(q); }
+    div.appendChild(gl);
+    const seg=document.createElement("div"); seg.className="seg";
+    (g.options||[]).slice(0,3).forEach((o,oi)=>{
+      const b=document.createElement("button");
+      b.innerHTML=`${o.label}<small>${o.desc||""}</small>`;
+      if(oi===Math.min(1,(g.options.length-1))) b.classList.add("on");
+      b.addEventListener("click",()=>{
+        seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+        b.classList.add("on"); consChoice[gi]=oi; snd.tick();
+      });
+      seg.appendChild(b);
     });
+    div.appendChild(seg); box.appendChild(div);
   });
+  groups.forEach((g,gi)=>{ consChoice[gi]=Math.min(1,(g.options?.length||3)-1); });
 }
-bindSeg("segSave","save"); bindSeg("segTime","time"); bindSeg("segBack","back");
+async function prepareConstraints(dilemma){
+  $("cgroups").innerHTML=`<div class="cgroup"><div class="gl">看山正在翻你的档案…</div></div>`;
+  let groups=null;
+  try{
+    const r=await fetch("/api/constraints",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({dilemma})});
+    if(r.ok){ const d=await r.json();
+      if(Array.isArray(d.constraints)&&d.constraints.length>=3) groups=d.constraints.slice(0,3); }
+  }catch(e){}
+  renderConstraints(groups||DEFAULT_CONSTRAINTS);
+}
+function chosenConsText(){
+  if(!consData) return "";
+  return consData.map((g,gi)=>{
+    const o=(g.options||[])[consChoice[gi]??1]||g.options[0];
+    return `${g.label}：${o.label}${o.desc?`（${o.desc}）`:""}`;
+  }).join("；");
+}
+function chosenInitFx(){
+  const fx={cash:0,mood:0,opp:0,fam:0};
+  if(!consData) return fx;
+  consData.forEach((g,gi)=>{
+    const o=(g.options||[])[consChoice[gi]??1]||g.options[0];
+    for(const k of ["cash","mood","opp","fam"]) fx[k]+=(o.fx&&o.fx[k])||0;
+  });
+  return fx;
+}
 
 $("startBtn").addEventListener("click",async ()=>{
-  const c=S.cons;
-  S.meters.cash = c.save==="3m"?38 : c.save==="6m"?58 : 78;
-  S.meters.opp  = c.time==="urgent"?48 : c.time==="mid"?60 : 68;
-  S.meters.mood = c.back==="yes"?64 : 54;
-  S.meters.fam  = c.back==="yes"?66 : 58;
+  const fx=chosenInitFx();
+  for(const k of ["cash","mood","opp","fam"]) S.meters[k]=Math.max(20,Math.min(90,55+fx[k]));
   S.scale=0; S.round=0; S.log=[]; S.monthIdx=0; S.crisisUsed=false; S.clashPick=null; S.lastChoice={};
-  if(pendingForge){ await forgeAndStart(pendingForge.dilemma); }
+  if(pendingForge){ await forgeAndStart(pendingForge.dilemma, chosenConsText()); }
   else if(pendingTopic){
     S.topic=pendingTopic;
     show(null); showHud(false);
@@ -871,7 +905,7 @@ $("startBtn").addEventListener("click",async ()=>{
 });
 
 /* 真实编译：/api/forge；失败回退离线模板（诚实标注） */
-async function forgeAndStart(dilemma){
+async function forgeAndStart(dilemma, consText){
   show(null); showHud(false);
   $("compDilemma").textContent=`「${dilemma}」`;
   $("compiling").classList.add("show");
@@ -884,7 +918,7 @@ async function forgeAndStart(dilemma){
     try{
       const r=await fetch("/api/forge",{
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ dilemma, save:S.cons.save, time:S.cons.time, back:S.cons.back })
+        body: JSON.stringify({ dilemma, consText: consText||"", save:S.cons.save, time:S.cons.time, back:S.cons.back })
       });
       if(r.ok){ const d=await r.json(); if(d?.topic){ topic=d.topic; live=true; } }
     }catch(e){}

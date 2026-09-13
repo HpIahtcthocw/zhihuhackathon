@@ -11,9 +11,10 @@ const COLORS = ["#b44632", "#315b73", "#66705a", "#8590a6", "#b6843d"];
 
 type ForgeInput = {
   dilemma: string;
-  save?: string; // 3m | 6m | 12m
+  save?: string; // 3m | 6m | 12m（离线兜底用）
   time?: string; // urgent | mid | loose
   back?: string; // yes | no
+  consText?: string; // 动态生成的自然语言处境描述（优先）
 };
 
 type Fx = { scale?: number; cash?: number; mood?: number; opp?: number; fam?: number };
@@ -64,7 +65,8 @@ function userPrompt(input: ForgeInput, driftFeedback?: string): string {
     time: { urgent: "时间窗口很急，机会再拖就过期", mid: "时间窗口约半年，还有得想", loose: "时间窗口一年以上，输得起时间" },
     back: { yes: "有退路，大不了回头", no: "没有退路，破釜沉舟" },
   } as const;
-  const cons = `${CONS_TXT.save[(input.save ?? "6m") as keyof typeof CONS_TXT.save] ?? CONS_TXT.save["6m"]}；${CONS_TXT.time[(input.time ?? "mid") as keyof typeof CONS_TXT.time] ?? CONS_TXT.time.mid}；${CONS_TXT.back[(input.back ?? "no") as keyof typeof CONS_TXT.back] ?? CONS_TXT.back.no}`;
+  const cons = (input.consText && input.consText.trim())
+    || `${CONS_TXT.save[(input.save ?? "6m") as keyof typeof CONS_TXT.save] ?? CONS_TXT.save["6m"]}；${CONS_TXT.time[(input.time ?? "mid") as keyof typeof CONS_TXT.time] ?? CONS_TXT.time.mid}；${CONS_TXT.back[(input.back ?? "no") as keyof typeof CONS_TXT.back] ?? CONS_TXT.back.no}`;
   return `${driftFeedback ?? ""}用户的困境：「${input.dilemma}」
 用户的处境：${cons}
 
