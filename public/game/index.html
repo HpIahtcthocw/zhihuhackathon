@@ -206,7 +206,6 @@
   /* 看山司仪 */
   .host{font-family:var(--sans);font-size:12px;color:var(--amber);text-align:center;
     margin:14px 0 4px;line-height:1.8}
-  .host::before{content:"🦊 ";}
 
   /* 回怼输入 */
   .freetext{display:flex;gap:10px;margin-bottom:14px;animation:cardIn .35s ease both}
@@ -298,7 +297,7 @@
   .fate{position:fixed;inset:0;background:rgba(33,29,22,.78);z-index:120;display:none;
     align-items:center;justify-content:center;padding:16px}
   .fate.open{display:flex;animation:fadeIn .3s ease}
-  .fate-card{background:linear-gradient(165deg,#fffdf8,#f3ecdd);border-radius:20px;max-width:520px;width:100%;
+  .fate-card{position:relative;background:linear-gradient(165deg,#fffdf8,#f3ecdd);border-radius:20px;max-width:520px;width:100%;
     padding:clamp(26px,6vw,36px);box-shadow:0 24px 90px rgba(0,0,0,.5);
     max-height:92vh;overflow:auto}
   .fate-card .fl{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.4em;text-align:center}
@@ -391,7 +390,7 @@
 
   <!-- 编译中 -->
   <section class="compiling" id="compiling">
-    <div class="ring"></div>
+    <img src="/game/ip/hi.gif" alt="刘看山" style="width:110px;height:110px;image-rendering:auto;margin-bottom:6px">
     <p class="kicker" id="compDilemma" style="margin:0 auto 12px;max-width:32em;line-height:2"></p>
     <p>看山正搬着四把椅子入席…<br><b id="compilingTip">拉取真实争议 · 孵化四位答主</b></p>
   </section>
@@ -488,7 +487,8 @@
 <!-- 命运卡 -->
 <div class="fate" id="fate">
   <div class="fate-card">
-    <div class="fl">一 年 后 · 命 运 档 案</div>
+    <img src="/game/ip/idle.gif" alt="刘看山" style="position:absolute;right:18px;top:14px;width:64px;height:64px">
+    <div class="fl">一 年 后 · 看 山 盖 章 · 命 运 档 案</div>
     <h2 id="fateTitle"></h2>
     <p class="verdict" id="fateVerdict"></p>
     <div class="tl" id="fateTl"></div>
@@ -521,7 +521,8 @@ function danmu(){
 }
 function hostSay(text){
   const d=document.createElement("div");
-  d.className="host"; d.textContent=text;
+  d.className="host";
+  d.innerHTML=`<img src="/game/ip/idle.gif" alt="" style="width:26px;height:26px;vertical-align:-8px;margin-right:6px">${text}`;
   return d;
 }
 
