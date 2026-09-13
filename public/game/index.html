@@ -482,6 +482,7 @@
     <p class="verdict" id="fateVerdict"></p>
     <div class="tl" id="fateTl"></div>
     <div class="quote" id="fateQuote"></div>
+    <div class="quote" id="zhidaBox" style="display:none;background:rgba(182,132,61,.08);border-left-color:var(--amber)"></div>
     <div class="btns">
       <button class="again" id="againBtn">换个困境再来</button>
       <button class="copy" id="imgBtn">保存分享图</button>
@@ -764,7 +765,7 @@ async function loadHot(){
       d.className="hot-item";
       d.innerHTML=`<div class="rank r${Math.min(i+1,3)}">${i+1}</div>
         <div><div class="t">${it.title}</div>
-        <div class="meta"><b>${it.metrics||it.heat}</b> · 知乎实时数据 · 点击围炉此困境</div></div>`;
+        <div class="meta"><b>${it.isHot?"🔥 知乎热榜":(it.metrics||it.heat)}</b> · 知乎实时数据 · 点击围炉此困境</div></div>`;
       d.addEventListener("click",()=>{ snd.tick(); pickDilemma(it.title); });
       box.appendChild(d);
     });
@@ -1161,6 +1162,16 @@ function finishRun(){
   $("fateQuote").textContent=`${adv.name}（${adv.bio}）：${adv.open.replace(/<[^>]+>/g,"")}`;
   $("fate").classList.add("open");
   S.fateTitle=e.t;
+  // 知乎直答 · 官方参考口径（失败静默隐藏）
+  const zb=$("zhidaBox");
+  zb.style.display="none";
+  fetch("/api/zhida",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({dilemma:t.q})})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{ if(d?.text){
+      zb.innerHTML=`<b style="font-family:var(--sans);font-size:11px;color:var(--amber)">知乎直答 · 基于社区内容的参考口径</b><br>${d.text}`;
+      zb.style.display="block";
+    }}).catch(()=>{});
 }
 $("againBtn").addEventListener("click",()=>{ location.reload(); });
 $("backBtn").addEventListener("click",()=>{ location.reload(); });
