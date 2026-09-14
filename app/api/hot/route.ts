@@ -20,11 +20,21 @@ const TTL = 3600 * 1000;
 let cache: { at: number; items: HotItem[] } | null = null;
 let stale: { at: number; items: HotItem[] } | null = null;
 
-const QUERIES = ["要不要裸辞", "考研还是工作", "该不该结婚", "精神内耗 失眠", "存款 安全感", "原生家庭 父母"];
+const QUERIES = [
+  "要不要裸辞",
+  "考研还是工作",
+  "该不该结婚",
+  "精神内耗 失眠",
+  "存款 安全感",
+  "原生家庭 父母",
+  "gap 一年 后悔吗",
+  "该不该回老家",
+  "转行 来得及吗",
+];
 
 async function fetchHotList(secret: string): Promise<HotItem[]> {
   const url = new URL("https://developer.zhihu.com/api/v1/content/hot_list");
-  url.searchParams.set("Limit", "10");
+  url.searchParams.set("Limit", "30");
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${secret}`,
@@ -74,7 +84,7 @@ export async function GET(_req: NextRequest) {
         QUERIES.map(async (q) => {
           const url = new URL("https://developer.zhihu.com/api/v1/content/zhihu_search");
           url.searchParams.set("Query", q);
-          url.searchParams.set("Count", "3");
+          url.searchParams.set("Count", "5");
           const res = await fetch(url, {
             headers: {
               Authorization: `Bearer ${secret}`,
@@ -102,14 +112,14 @@ export async function GET(_req: NextRequest) {
     const all = [...hotItems, ...results.flat()].filter(
       (it) => it.title && !seen.has(it.title) && seen.add(it.title),
     );
-    // 热榜条目置顶；搜索条目按赞同数阈值过滤
-    const hot = all.filter((it) => it.isHot).slice(0, 4);
+    // 热榜条目置顶；搜索条目按赞同数排序，高赞优先，赞数不足则放宽保住下拉栏数量
+    const hot = all.filter((it) => it.isHot).slice(0, 8);
     const searched = all
-      .filter((it) => !it.isHot)
+      .filter((it) => !it.isHot && it.title)
       .sort((a, b) => b.votes - a.votes);
     const strong = searched.filter((it) => it.votes >= 40);
-    const relaxed = searched.filter((it) => it.votes >= 8);
-    const items = [...hot, ...(strong.length >= 4 ? strong : relaxed).slice(0, 6)];
+    const pool = strong.length >= 6 ? strong : searched;
+    const items = [...hot, ...pool.slice(0, 12)];
     if (items.length) {
       cache = { at: Date.now(), items };
       stale = cache;

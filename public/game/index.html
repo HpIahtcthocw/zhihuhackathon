@@ -94,6 +94,11 @@
   .hot-item .t{font-family:var(--serif);font-size:clamp(15px,3vw,16.5px);line-height:1.65;font-weight:700}
   .hot-item .meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:6px;letter-spacing:.05em}
   .hot-item .meta b{color:var(--red);font-weight:600}
+  .hdrow{padding:0 24px 10px}
+  .hdselect{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--paper);
+    color:var(--ink);font-family:var(--serif);font-size:13.5px;line-height:1.6;padding:11px 12px;
+    cursor:pointer;transition:border-color .18s}
+  .hdselect:focus{outline:2px solid rgba(49,91,115,.3);border-color:var(--blue)}
 
   /* 自定义输入 */
   .custom{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r);
@@ -385,6 +390,7 @@
     <div class="hotbox">
       <div class="hd"><span class="t">知乎热榜 · 实时争议</span><span class="kicker">开放平台 zhihu_search</span></div>
       <div class="sub" id="hotNote" style="padding:0 24px 12px;font-size:11px;color:var(--ink-3)">正在拉取知乎实时数据…</div>
+      <div class="hdrow"><select id="hotSelect" class="hdselect" aria-label="从知乎热榜下拉选择议题"></select></div>
       <div id="hotList"></div>
     </div>
     <div class="lrow">
@@ -790,38 +796,52 @@ async function loadHot(){
     const r=await fetch("/api/hot");
     if(r.ok){ const d=await r.json(); items=d.items||[]; }
   }catch(e){}
+  // 统一卡片：真实数据优先，数量偏少时用离线剧本话题补足，保证列表与下拉栏有货
+  const cards=[];
+  items.forEach(it=>{
+    cards.push({title:it.title, isHot:!!it.isHot, meta:it, onClick:()=>pickDilemma(it.title),
+      tag:`<b>${it.isHot?"🔥 知乎热榜":(it.metrics||it.heat)}</b> · 知乎实时数据 · 点击围炉此困境`});
+  });
+  HOT_KEYS.forEach(k=>{
+    const t=TOPICS[k];
+    if(cards.length>=8) return;
+    if(cards.some(c=>c.title===t.hot)) return;
+    cards.push({title:t.hot, isHot:true, meta:{title:t.hot,isHot:true,votes:10000,_topic:t},
+      onClick:()=>startScripted(t),
+      tag:`<b>${t.heat} 热度</b> · 离线补充（历史抓取）`});
+  });
   box.innerHTML="";
-  if(items.length){
-    items.slice(0,6).forEach((it,i)=>{
-      const d=document.createElement("div");
-      d.className="hot-item";
-      d.innerHTML=`<div class="rank r${Math.min(i+1,3)}">${i+1}</div>
-        <div><div class="t">${it.title}</div>
-        <div class="meta"><b>${it.isHot?"🔥 知乎热榜":(it.metrics||it.heat)}</b> · 知乎实时数据 · 点击围炉此困境</div></div>`;
-      d.addEventListener("click",()=>{ snd.tick(); pickDilemma(it.title); });
-      box.appendChild(d);
-    });
-    $("hotNote").textContent="以上问题来自知乎开放平台实时数据 · 点击任一困境，AI 为你现场编译围炉";
-    hotItemsCache=items;
-    // 后台预热：提前编译前 2 条（命中服务端 24h 缓存 → 玩家点开时秒进）
-    items.slice(0,2).forEach(it=>{
-      fetch("/api/forge",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({dilemma:it.title,save:"6m",time:"mid",back:"no"})}).catch(()=>{});
-    });
-  }else{
-    HOT_KEYS.forEach((k,i)=>{
-      const t=TOPICS[k];
-      const d=document.createElement("div");
-      d.className="hot-item";
-      d.innerHTML=`<div class="rank r${i+1}">${i+1}</div>
-        <div><div class="t">${t.hot}</div>
-        <div class="meta"><b>${t.heat} 热度</b> · 离线演示快照（历史抓取）</div></div>`;
-      d.addEventListener("click",()=>{ snd.tick(); startScripted(t); });
-      box.appendChild(d);
-    });
-    $("hotNote").textContent="实时热榜暂不可用，已切换离线演示快照（数据为历史抓取，非实时）";
-    hotItemsCache=[];
-  }
+  if(!cards.length) return;
+  hotItemsCache=cards.map(c=>c.meta);
+  cards.forEach((c,i)=>{
+    const d=document.createElement("div");
+    d.className="hot-item";
+    d.dataset.cmd="pick";
+    d.innerHTML=`<div class="rank r${Math.min(i+1,3)}">${i+1}</div>
+      <div><div class="t">${c.title}</div>
+      <div class="meta">${c.tag}</div></div>`;
+    d.addEventListener("click",()=>{ snd.tick(); c.onClick(); });
+    box.appendChild(d);
+  });
+  const fill=cards.length-items.length;
+  $("hotNote").textContent = items.length
+    ? `已同步知乎实时热榜 ${items.length} 条${fill?`，另补充 ${fill} 个历史话题`:""} · 点击议题，或从下方下拉列表选择，AI 为你现场编译围炉`
+    : "实时热榜暂不可用，已切换离线演示快照（数据为历史抓取，非实时）";
+  fillHotSelect(cards,(i)=>cards[i].onClick());
+  // 后台预热：提前编译前 2 条（命中服务端 24h 缓存 → 玩家点开时秒进）
+  items.slice(0,2).forEach(it=>{
+    fetch("/api/forge",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({dilemma:it.title,save:"6m",time:"mid",back:"no"})}).catch(()=>{});
+  });
+}
+function fillHotSelect(items,onPick){
+  const sel=$("hotSelect");
+  sel.innerHTML=`<option value="">从知乎热榜下拉选择议题 ⬇</option>`+
+    items.map((it,i)=>`<option value="${i}">${it.isHot?"🔥 ":""}${it.title}</option>`).join("");
+  sel.onchange=()=>{
+    const i=sel.value===""?-1:+sel.value;
+    if(i>=0 && items[i]){ snd.tick(); onPick(i); sel.value=""; }
+  };
 }
 
 function pickDilemma(text){
@@ -834,7 +854,7 @@ function startScripted(topic){
   pendingTopic=topic; pendingForge=null;
   $("offlineNote").classList.remove("hide");
   show("screen-setup"); showHud(false);
-  renderConstraints(DEFAULT_CONSTRAINTS);
+  prepareConstraints(topic.hot);
 }
 
 $("customText").addEventListener("input",e=>{ $("customGo").disabled=!e.target.value.trim(); });
@@ -1344,14 +1364,15 @@ function recordFate(title){
   renderGallery();
 }
 function luckyDraw(){
-  const items=[...document.querySelectorAll("#hotList .hot-item")].filter((_,i)=>{
+  const cards=[...document.querySelectorAll("#hotList .hot-item")].filter(el=>el.dataset.cmd==="pick");
+  if(!cards.length) return;
+  const good=cards.filter((el,i)=>{
     const meta=hotItemsCache[i]; return meta && (meta.isHot || (meta.votes||0)>=20);
   });
-  const pool = items.length ? items.map((_,i)=>i) : [];
-  if(!pool.length) return;
+  const pool=good.length?good:cards;
   const pick=pool[Math.floor(Math.random()*pool.length)];
   snd.tick();
-  document.querySelectorAll("#hotList .hot-item")[pick].click();
+  pick.click();
 }
 let hotItemsCache=[];
 $("luckyBtn").addEventListener("click",luckyDraw);
