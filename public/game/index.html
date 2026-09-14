@@ -94,9 +94,7 @@
   .hot-item .t{font-family:var(--serif);font-size:clamp(15px,3vw,16.5px);line-height:1.65;font-weight:700}
   .hot-item .meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:6px;letter-spacing:.05em}
   .hot-item .meta .hot-badge{display:inline-block;font-family:var(--sans);font-size:10px;font-weight:700;
-    border-radius:20px;padding:2px 9px;margin-right:7px;vertical-align:1px;letter-spacing:.04em}
-  .hot-badge.badge-live{color:#fff;background:var(--zh-blue)}
-  .hot-badge.badge-off{color:var(--amber);background:rgba(182,132,61,.12);border:1px solid rgba(182,132,61,.35)}
+    border-radius:20px;padding:2px 9px;margin-right:7px;vertical-align:1px;letter-spacing:.04em;box-shadow:0 1px 2px rgba(0,0,0,.12)}
   .hdrow{display:flex;gap:8px;align-items:stretch;padding:0 24px 10px}
   .hdrow .hdselect{flex:1;min-width:0}
   .hdselect{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--paper);
@@ -821,19 +819,32 @@ async function loadHot(force){
     const r=await fetch("/api/hot"+(force?"?fresh=1":""));
     if(r.ok){ const d=await r.json(); items=d.items||[]; }
   }catch(e){}
-  // 统一卡片：真实数据优先，数量偏少时用离线剧本话题补足，保证列表与下拉栏有货
+  // 统一卡片：真实数据优先，数量偏少时用离线剧本话题补足；各类别困境都有覆盖
+  const CAT_BG={事业:"#315b73",爱情:"#b44632",友情:"#66705a",原生家庭:"#8a5a3b",心理健康:"#7a5f9e",金钱:"#2f7d5f",自我成长:"#5a6e8c"};
+  const badge=(cat)=>`<span class="hot-badge" style="background:${CAT_BG[cat]||"#6f6759"};color:#fff">${cat}</span>`;
   const cards=[];
   items.forEach(it=>{
-    cards.push({title:it.title, isHot:!!it.isHot, src:"live", meta:it, onClick:()=>pickDilemma(it.title),
-      tag:`<span class="hot-badge badge-live">实时</span>${it.metrics||it.heat} · 点击围炉此困境`});
+    const cat=it.cat||"自我成长";
+    cards.push({title:it.title, isHot:!!it.isHot, src:"live", cat, meta:it, onClick:()=>pickDilemma(it.title),
+      tag:`${badge(cat)}${it.metrics||it.heat} · 实时 · 点击围炉此困境`});
   });
-  HOT_KEYS.forEach(k=>{
-    const t=TOPICS[k];
+  // 离线补足：先精编剧本（coder/quit），再补跨类别通用议题，保证离线也有类型多样
+  const offPool=[{t:TOPICS.coder,cat:"事业"},{t:TOPICS.quit,cat:"事业"},
+    {hot:"恋爱三年对方父母不同意，这段感情该不该继续？",cat:"爱情"},
+    {hot:"和认识十年的好朋友因为钱闹掰了，还能和好吗？",cat:"友情"},
+    {hot:"爸妈从小否定我，做什么都想先看他们脸色。",cat:"原生家庭"},
+    {hot:"毕业第三年突然很空，职业和人生都没有方向。",cat:"自我成长"},
+    {hot:"一直被拿去跟别人比，越来越焦虑失眠。",cat:"心理健康"},
+    {hot:"存不下钱，总觉得没有安全感。",cat:"金钱"}];
+  offPool.forEach(sp=>{
     if(cards.length>=8) return;
-    if(cards.some(c=>c.title===t.hot)) return;
-    cards.push({title:t.hot, isHot:true, src:"off", meta:{title:t.hot,isHot:true,votes:10000,_topic:t},
-      onClick:()=>startScripted(t),
-      tag:`<span class="hot-badge badge-off">离线</span>${t.heat} 热度 · 历史抓取`});
+    const title=sp.t?sp.t.hot:sp.hot;
+    if(cards.some(c=>c.title===title)) return;
+    const topic=sp.t?sp.t:{...makeCustomTopic(title), hot:title};
+    cards.push({title, isHot:true, src:"off", cat:sp.cat||"事业",
+      meta:{title,isHot:true,votes:10000,_topic:topic},
+      onClick:()=>startScripted(topic),
+      tag:`${badge(sp.cat||"事业")}${topic.heat&&topic.heat!=="—"?" "+topic.heat+" 热度":""} · 离线 · 历史抓取`});
   });
   box.innerHTML="";
   if(!cards.length){
@@ -864,12 +875,16 @@ async function loadHot(force){
 }
 function fillHotSelect(items,onPick){
   const sel=$("hotSelect");
-  const live=items.filter(c=>c.src==="live");
-  const off=items.filter(c=>c.src==="off");
-  const opt=(c)=>`<option value="${items.indexOf(c)}">${c.src==="live"?"🔥 ":""}${c.title}</option>`;
+  const order=["事业","爱情","友情","原生家庭","心理健康","金钱","自我成长","其他"];
+  const groups={};
+  items.forEach(c=>{ const k=c.cat||"自我成长"; (groups[k]=groups[k]||[]).push(c); });
+  const keys=Object.keys(groups).sort((a,b)=>{
+    const ia=order.indexOf(a), ib=order.indexOf(b);
+    return (ia<0?99:ia)-(ib<0?99:ib);
+  });
   sel.innerHTML=`<option value="">从知乎热榜下拉选择议题 ⬇</option>`+
-    (live.length?`<optgroup label="🔥 知乎实时">${live.map(opt).join("")}</optgroup>`:"")+
-    (off.length?`<optgroup label="📄 离线补充">${off.map(opt).join("")}</optgroup>`:"");
+    keys.map(cat=>`<optgroup label="${cat}">${groups[cat].map(c=>
+      `<option value="${items.indexOf(c)}">${c.src==="live"?"🔥 ":"📄 "}${c.title}</option>`).join("")}</optgroup>`).join("");
   sel.onchange=()=>{
     const i=sel.value===""?-1:+sel.value;
     if(i>=0 && items[i]){ snd.tick(); onPick(i); sel.value=""; }
