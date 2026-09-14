@@ -93,12 +93,32 @@
   .rank.r1{color:var(--red)} .rank.r2{color:var(--amber)} .rank.r3{color:var(--ink-2)}
   .hot-item .t{font-family:var(--serif);font-size:clamp(15px,3vw,16.5px);line-height:1.65;font-weight:700}
   .hot-item .meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:6px;letter-spacing:.05em}
-  .hot-item .meta b{color:var(--red);font-weight:600}
-  .hdrow{padding:0 24px 10px}
+  .hot-item .meta .hot-badge{display:inline-block;font-family:var(--sans);font-size:10px;font-weight:700;
+    border-radius:20px;padding:2px 9px;margin-right:7px;vertical-align:1px;letter-spacing:.04em}
+  .hot-badge.badge-live{color:#fff;background:var(--zh-blue)}
+  .hot-badge.badge-off{color:var(--amber);background:rgba(182,132,61,.12);border:1px solid rgba(182,132,61,.35)}
+  .hdrow{display:flex;gap:8px;align-items:stretch;padding:0 24px 10px}
+  .hdrow .hdselect{flex:1;min-width:0}
   .hdselect{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--paper);
     color:var(--ink);font-family:var(--serif);font-size:13.5px;line-height:1.6;padding:11px 12px;
     cursor:pointer;transition:border-color .18s}
   .hdselect:focus{outline:2px solid rgba(49,91,115,.3);border-color:var(--blue)}
+  .hdrefresh{flex:0 0 auto;border:1px solid var(--line);background:var(--paper);color:var(--ink-2);
+    border-radius:10px;padding:0 14px;font-family:var(--sans);font-size:13px;font-weight:600;
+    cursor:pointer;transition:all .15s;white-space:nowrap}
+  .hdrefresh:hover{color:var(--ink);border-color:var(--ink-2);background:var(--card)}
+  .hdrefresh:disabled{opacity:.5;cursor:progress}
+
+  /* 看山安慰卡 */
+  .comfort{background:linear-gradient(135deg,rgba(49,91,115,.08),rgba(182,132,61,.10));
+    border:1px solid var(--line-2);border-radius:14px;padding:14px 16px;margin-bottom:14px;
+    font-family:var(--serif);animation:cardIn .35s ease both}
+  .comfort .cf-head{font-weight:700;font-size:13.5px;color:var(--blue);margin-bottom:6px}
+  .comfort .cf-body{font-size:14px;line-height:1.85;color:var(--ink)}
+  .comfort .cf-close{margin-top:10px;border:1px solid var(--line);background:var(--paper);
+    color:var(--ink);border-radius:8px;padding:5px 14px;font-size:12px;cursor:pointer;
+    font-family:var(--serif);transition:border-color .18s,color .18s}
+  .comfort .cf-close:hover{border-color:var(--blue);color:var(--blue)}
 
   /* 自定义输入 */
   .custom{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r);
@@ -390,7 +410,7 @@
     <div class="hotbox">
       <div class="hd"><span class="t">知乎热榜 · 实时争议</span><span class="kicker">开放平台 zhihu_search</span></div>
       <div class="sub" id="hotNote" style="padding:0 24px 12px;font-size:11px;color:var(--ink-3)">正在拉取知乎实时数据…</div>
-      <div class="hdrow"><select id="hotSelect" class="hdselect" aria-label="从知乎热榜下拉选择议题"></select></div>
+      <div class="hdrow"><select id="hotSelect" class="hdselect" aria-label="从知乎热榜下拉选择议题"></select><button class="hdrefresh" id="hotRefresh" type="button" title="强制重新同步知乎实时热榜">⟳ 刷新</button></div>
       <div id="hotList"></div>
     </div>
     <div class="lrow">
@@ -423,6 +443,11 @@
       <h2 id="setupTitle">入席前，先对齐三件事</h2>
       <p class="sub" id="setupSub">处境不同，围炉的谈法和结局都不同。这三项由你的困境动态生成。</p>
       <p class="sub hide" id="offlineNote" style="color:var(--amber)">※ 当前为离线演示剧本（历史抓取数据），联网后会为你实时编译。</p>
+      <div class="comfort hide" id="comfortCard">
+        <div class="cf-head">🧭 看山先跟你说一句</div>
+        <div class="cf-body" id="comfortText"></div>
+        <button class="cf-close" id="comfortClose" aria-label="收起">知道了，入席 →</button>
+      </div>
       <div id="cgroups"></div>
       <button class="start" id="startBtn">入 席 围 炉</button>
     </div>
@@ -788,30 +813,33 @@ const HOT_KEYS=["coder","quit"];
 let pendingForge=null;   // {dilemma} — 需要真实编译的困境
 let pendingTopic=null;   // 离线脚本话题（仅断网兜底）
 
-async function loadHot(){
+async function loadHot(force){
   const box=$("hotList");
-  box.innerHTML=`<div class="hot-item" style="cursor:default"><div class="rank r3">…</div><div><div class="t">正在拉取知乎实时争议…</div><div class="meta">开放平台 · zhihu_search</div></div></div>`;
+  box.innerHTML=`<div class="hot-item" style="cursor:default"><div class="rank r3">…</div><div><div class="t">正在${force?"刷新":"拉取"}知乎实时争议…</div><div class="meta">开放平台 · zhihu_search</div></div></div>`;
   let items=[];
   try{
-    const r=await fetch("/api/hot");
+    const r=await fetch("/api/hot"+(force?"?fresh=1":""));
     if(r.ok){ const d=await r.json(); items=d.items||[]; }
   }catch(e){}
   // 统一卡片：真实数据优先，数量偏少时用离线剧本话题补足，保证列表与下拉栏有货
   const cards=[];
   items.forEach(it=>{
-    cards.push({title:it.title, isHot:!!it.isHot, meta:it, onClick:()=>pickDilemma(it.title),
-      tag:`<b>${it.isHot?"🔥 知乎热榜":(it.metrics||it.heat)}</b> · 知乎实时数据 · 点击围炉此困境`});
+    cards.push({title:it.title, isHot:!!it.isHot, src:"live", meta:it, onClick:()=>pickDilemma(it.title),
+      tag:`<span class="hot-badge badge-live">实时</span>${it.metrics||it.heat} · 点击围炉此困境`});
   });
   HOT_KEYS.forEach(k=>{
     const t=TOPICS[k];
     if(cards.length>=8) return;
     if(cards.some(c=>c.title===t.hot)) return;
-    cards.push({title:t.hot, isHot:true, meta:{title:t.hot,isHot:true,votes:10000,_topic:t},
+    cards.push({title:t.hot, isHot:true, src:"off", meta:{title:t.hot,isHot:true,votes:10000,_topic:t},
       onClick:()=>startScripted(t),
-      tag:`<b>${t.heat} 热度</b> · 离线补充（历史抓取）`});
+      tag:`<span class="hot-badge badge-off">离线</span>${t.heat} 热度 · 历史抓取`});
   });
   box.innerHTML="";
-  if(!cards.length) return;
+  if(!cards.length){
+    box.innerHTML=`<div class="hot-item" style="cursor:default"><div class="t" style="font-family:var(--serif);font-weight:700">暂无可用议题，请稍后重试或点击下方「刷新」。</div></div>`;
+    return;
+  }
   hotItemsCache=cards.map(c=>c.meta);
   cards.forEach((c,i)=>{
     const d=document.createElement("div");
@@ -825,30 +853,57 @@ async function loadHot(){
   });
   const fill=cards.length-items.length;
   $("hotNote").textContent = items.length
-    ? `已同步知乎实时热榜 ${items.length} 条${fill?`，另补充 ${fill} 个历史话题`:""} · 点击议题，或从下方下拉列表选择，AI 为你现场编译围炉`
+    ? `${force?"已刷新：":"已同步知乎实时热榜 "}${items.length} 条${fill?`，另补充 ${fill} 个历史话题`:""} · 点击议题，或从下拉列表选择，AI 现场编译围炉`
     : "实时热榜暂不可用，已切换离线演示快照（数据为历史抓取，非实时）";
   fillHotSelect(cards,(i)=>cards[i].onClick());
-  // 后台预热：提前编译前 2 条（命中服务端 24h 缓存 → 玩家点开时秒进）
-  items.slice(0,2).forEach(it=>{
+  // 后台预热：提前编译前 2 条（命中服务端 24h 缓存 → 玩家点开时秒进）；手动刷新不重复预热
+  if(!force) items.slice(0,2).forEach(it=>{
     fetch("/api/forge",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({dilemma:it.title,save:"6m",time:"mid",back:"no"})}).catch(()=>{});
   });
 }
 function fillHotSelect(items,onPick){
   const sel=$("hotSelect");
+  const live=items.filter(c=>c.src==="live");
+  const off=items.filter(c=>c.src==="off");
+  const opt=(c)=>`<option value="${items.indexOf(c)}">${c.src==="live"?"🔥 ":""}${c.title}</option>`;
   sel.innerHTML=`<option value="">从知乎热榜下拉选择议题 ⬇</option>`+
-    items.map((it,i)=>`<option value="${i}">${it.isHot?"🔥 ":""}${it.title}</option>`).join("");
+    (live.length?`<optgroup label="🔥 知乎实时">${live.map(opt).join("")}</optgroup>`:"")+
+    (off.length?`<optgroup label="📄 离线补充">${off.map(opt).join("")}</optgroup>`:"");
   sel.onchange=()=>{
     const i=sel.value===""?-1:+sel.value;
     if(i>=0 && items[i]){ snd.tick(); onPick(i); sel.value=""; }
   };
 }
+// 手动刷新：强制绕过 1h 服务端缓存，重新同步知乎实时热榜
+$("hotRefresh").addEventListener("click",async ()=>{
+  const btn=$("hotRefresh");
+  btn.disabled=true; btn.textContent="⏳ 刷新中…";
+  $("hotNote").textContent="正在强制刷新知乎实时热榜…";
+  await loadHot(true);
+  btn.disabled=false; btn.textContent="⟳ 刷新";
+});
 
 function pickDilemma(text){
   pendingForge={dilemma:text}; pendingTopic=null;
   $("offlineNote").classList.add("hide");
   show("screen-setup"); showHud(false);
+  showComfort(text);
   prepareConstraints(text);
+}
+function showComfort(dilemma){
+  const t=(dilemma||"").replace(/[？?。，,\s]/g,"");
+  const short=t.slice(0,12)+(t.length>12?"…":"");
+  const lines=[
+    "能把这个问出口，你已经比大多数停在原地的人多走了一步。",
+    "今天不去想「该不该」，先听听四位答主怎么说——答案不会跑，但你肯坐下来面对，已经很了不起。",
+    "别怕选错。围炉里你还有十二个月可以重来，现实里你也永远有权改签。",
+    "把「"+(short||"这个坎")+"」摊开在桌上，本身就是一种勇敢。看山陪你把它聊透。",
+  ];
+  const pick=lines[Math.floor(Math.random()*lines.length)];
+  const el=$("comfortCard");
+  $("comfortText").textContent=pick;
+  el.classList.remove("hide");
 }
 function startScripted(topic){
   pendingTopic=topic; pendingForge=null;
@@ -931,7 +986,9 @@ function chosenInitFx(){
   return fx;
 }
 
+$("comfortClose").addEventListener("click",()=>{ $("comfortCard").classList.add("hide"); });
 $("startBtn").addEventListener("click",async ()=>{
+  $("comfortCard").classList.add("hide");
   const fx=chosenInitFx();
   for(const k of ["cash","mood","opp","fam"]) S.meters[k]=Math.max(20,Math.min(90,55+fx[k]));
   S.scale=0; S.round=0; S.log=[]; S.monthIdx=0; S.crisisUsed=false; S.clashPick=null; S.lastChoice={};
@@ -1342,6 +1399,8 @@ $("imgBtn").addEventListener("click",()=>{
   ctx.fillStyle="#315b73"; ctx.fillRect(60,ty,4,118);
   ctx.fillStyle="#315b73"; ctx.font="400 16px "+SERIF;
   wrapText(ctx,$("fateQuote").textContent.slice(0,90),84,ty+34,580,27);
+  ctx.fillStyle="#315b73"; ctx.font="600 17px "+SERIF; ctx.textAlign="center";
+  ctx.fillText("“能走到这里的你，就有能力承担接下来的每一种选择。”",375,928);
   ctx.fillStyle="#9b9284"; ctx.font="400 14px "+SANS; ctx.textAlign="center";
   ctx.fillText("知乎黑客松 · 跨次元游乐场 | 你的困境，会是什么命运？",375,965);
   const a=document.createElement("a");

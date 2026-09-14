@@ -33,7 +33,7 @@ const fx = (o: Partial<Fx>): Fx => ({
 function entities(dilemma: string) {
   const nums = dilemma.match(/\d+[个岁年万]?/g)?.slice(0, 3) ?? ["现在"];
   const city = dilemma.match(/[A-Za-z\u4e00-\u9fa5]{2,6}(?:市|县|城|镇|深圳|北京|上海|广州|杭州|成都|南京|老家|家乡|外地)/)?.[0] ?? "";
-  const place = city || "那个城市";
+  const place = city || "新的地方";
   return { nums, place };
 }
 

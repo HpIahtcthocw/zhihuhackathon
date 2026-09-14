@@ -60,8 +60,9 @@ async function fetchHotList(secret: string): Promise<HotItem[]> {
     }));
 }
 
-export async function GET(_req: NextRequest) {
-  if (cache && Date.now() - cache.at < TTL) {
+export async function GET(req: NextRequest) {
+  const fresh = req.nextUrl.searchParams.get("fresh") === "1";
+  if (!fresh && cache && Date.now() - cache.at < TTL) {
     return Response.json({ items: cache.items, cached: true });
   }
   const fallBack = (reason: string) => {
