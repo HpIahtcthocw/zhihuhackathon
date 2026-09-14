@@ -118,40 +118,46 @@ export async function GET(req: NextRequest) {
     return Response.json({ items: OFFLINE_POOL, cached: false, stale: true, offline: true });
   }
   try {
-    const [hotItems, results] = await Promise.all([
-      fetchHotList(secret).catch(() => [] as HotItem[]),
-      Promise.all(
-        QUERIES.map(async (quo) => {
-          const { q, cat } = quo;
-          const url = new URL("https://developer.zhihu.com/api/v1/content/zhihu_search");
-          url.searchParams.set("Query", q);
-          url.searchParams.set("Count", "5");
-          const res = await fetch(url, {
-            headers: {
-              Authorization: `Bearer ${secret}`,
-              "X-Request-Timestamp": String(Math.floor(Date.now() / 1000)),
-              "Content-Type": "application/json",
-            },
-            signal: AbortSignal.timeout(10_000),
-            cache: "no-store",
-          });
-          if (!res.ok) return [];
-          const data = await res.json();
-          const items = data?.Data?.Items ?? data?.data?.items ?? [];
-          return items.map((it: Record<string, unknown>) => ({
-            title: String(it?.Title ?? "").replace(/\s*-\s*知乎$/, "").slice(0, 80),
-            metrics: `${Number(it?.VoteUpCount ?? 0).toLocaleString()} 赞同 · ${Number(it?.CommentCount ?? 0).toLocaleString()} 评论`,
-            excerpt: String(it?.ContentText ?? "").replace(/\s+/g, " ").slice(0, 200),
-            url: String(it?.Url ?? ""),
-            votes: Number(it?.VoteUpCount ?? 0),
-            comments: Number(it?.CommentCount ?? 0),
-            cat,
-          }));
-        }),
-      ),
-    ]);
+    const fetchSearch = async (q: string, cat: string): Promise<HotItem[]> => {
+      const url = new URL("https://developer.zhihu.com/api/v1/content/zhihu_search");
+      url.searchParams.set("Query", q);
+      url.searchParams.set("Count", "8");
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "X-Request-Timestamp": String(Math.floor(Date.now() / 1000)),
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(10_000),
+        cache: "no-store",
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const items = data?.Data?.Items ?? data?.data?.items ?? [];
+      return items.map((it: Record<string, unknown>) => ({
+        title: String(it?.Title ?? "").replace(/\s*-\s*知乎$/, "").slice(0, 80),
+        metrics: `${Number(it?.VoteUpCount ?? 0).toLocaleString()} 赞同 · ${Number(it?.CommentCount ?? 0).toLocaleString()} 评论`,
+        excerpt: String(it?.ContentText ?? "").replace(/\s+/g, " ").slice(0, 200),
+        url: String(it?.Url ?? ""),
+        votes: Number(it?.VoteUpCount ?? 0),
+        comments: Number(it?.CommentCount ?? 0),
+        cat,
+      }));
+    };
+    // 搜索词分批串行（并发 3），避免 13 路并发触发知乎限频只成功前几路
+    const searchItems: HotItem[] = [];
+    const BATCH = 3;
+    for (let i = 0; i < QUERIES.length; i += BATCH) {
+      const batch = QUERIES.slice(i, i + BATCH);
+      const settled = await Promise.all(
+        batch.map((quo) => fetchSearch(quo.q, quo.cat).catch(() => [] as HotItem[])),
+      );
+      for (const items of settled) searchItems.push(...items);
+      if (i + BATCH < QUERIES.length) await new Promise((r) => setTimeout(r, 250));
+    }
+    const hotItems = await fetchHotList(secret).catch(() => [] as HotItem[]);
     const seen = new Set<string>();
-    const all = [...hotItems, ...results.flat()].filter(
+    const all = [...hotItems, ...searchItems].filter(
       (it) => it.title && !seen.has(it.title) && seen.add(it.title),
     );
     // 热榜条目置顶；搜索条目按赞同数排序，高赞优先，赞数不足则放宽保住下拉栏数量
