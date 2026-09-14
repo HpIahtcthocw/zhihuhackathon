@@ -8,3 +8,9 @@ next-env.d.ts
 .DS_Store
 *.log
 .zhihu-skill/
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+  

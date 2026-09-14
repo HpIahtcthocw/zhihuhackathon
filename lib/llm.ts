@@ -1,4 +1,4 @@
-import { extractJSON } from "./extract";
+﻿import { extractJSON } from "./extract";
 
 /* LLM 通道：DashScope（OpenAI 兼容协议）。
    forge 用质量模型（CROSSROAD_MODEL），rebuttal 用快速模型（CROSSROAD_MODEL_FAST）。 */
@@ -53,13 +53,14 @@ async function dashscope(
       model,
       max_tokens: maxTokens,
       temperature: 0.6,
+
       ...(isThinker ? { enable_thinking: false } : {}),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
     }),
-    signal: AbortSignal.timeout(55_000),
+    signal: AbortSignal.timeout(40_000), // 单次40s：2次尝试+兜底，卡进 EdgeOne 120s
   });
   if (!res.ok) {
     const body = await res.text();

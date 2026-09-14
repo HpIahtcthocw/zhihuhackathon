@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
 import { complete, extractJSON } from "@/lib/llm";
+import { makeFallback } from "@/lib/fallback";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ type ForgeTopic = {
   desc: string;
   src: string;
   srcTag: string;
-  aiCompiled: true;
+  aiCompiled: boolean;
   advisors: Array<{ id: string; ch: string; name: string; bio: string; color: string; votes: number; open: string; cmt: string }>;
   rounds: Array<{ by: string; press: string; text: string; opts: Array<{ t: string; fx: Fx; reply: string; vt?: string }> }>;
   clash: { L: { name: string; p: string; btn: string; fx: Fx }; R: { name: string; p: string; btn: string; fx: Fx } };
@@ -235,11 +236,11 @@ export async function POST(req: NextRequest) {
       ? String((body as Record<string, unknown>).model) : undefined;
     let topic: ForgeTopic | null = null;
     let lastErr = "";
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) { // 最多2次：单次42s×2=84s，卡进 EdgeOne 120s 上限
       const feedback = attempt === 0 ? undefined
         : `你上一次的输出存在以下问题：「${lastErr}」。请重新完整输出全部字段的合法 JSON（advisors 恰好4个、rounds 恰好3轮且每轮恰好2个opts、clash、months 恰好4个、endings 四种齐全），不要重犯。`;
       try {
-        const raw = await complete(SYSTEM, userPrompt(body, feedback), 6500, testModel);
+        const raw = await complete(SYSTEM, userPrompt(body, feedback), 5000, testModel);
         const t = validate(extractJSON(raw), body);
         t.q = dilemma; // q 锚定为用户原话，杜绝标题漂移
         const drift = driftRatio(t, dilemma);
@@ -251,7 +252,13 @@ export async function POST(req: NextRequest) {
         console.log(`[forge] attempt=${attempt + 1} 失败: ${lastErr}`);
       }
     }
-    if (!topic) throw new Error(`三次编译均失败（${lastErr}）`);
+    if (!topic) {
+      // LLM 两次失败 -> 本地模板兜底：围绕困境动态生成，秒回，保证前端全流程可跑通
+      console.warn(`[forge] LLM 两次失败（${lastErr}），启用本地模板兜底`);
+      const fallbackTopic = makeFallback(dilemma, body);
+      cache.set(key, { topic: fallbackTopic, at: Date.now() });
+      return Response.json({ topic: fallbackTopic, cached: false, source: "fallback" });
+    }
 
     cache.set(key, { topic, at: Date.now() });
     return Response.json({ topic, cached: false, source: "llm" });
