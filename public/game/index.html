@@ -380,7 +380,7 @@
     <div class="hero">
       <div class="kicker">知乎黑客松 · 跨次元游乐场</div>
       <h1>今晚，四位知乎答主<br>只围炉讨论<em>你一个人的事</em>。</h1>
-      <p>选一个真实知乎争议，或写下你的困境。四位由真实回答与精选评论孵化的答主会质询你、和你对线——然后陪你把这一年推演完。</p>
+      <p>选一个真实知乎争议，或写下你自己的。四位答主会质询你、和你对线，再把这一年推演完。别急，看山也在。</p>
     </div>
     <div class="hotbox">
       <div class="hd"><span class="t">知乎热榜 · 实时争议</span><span class="kicker">开放平台 zhihu_search</span></div>
@@ -453,7 +453,7 @@
 <!-- 对线 -->
 <div class="clash" id="clash">
   <div class="clash-card">
-    <div class="lab">⚠ 对线时刻 — 你必须站队</div>
+    <div class="lab">⚠ 对线时刻 · 必须站队</div>
     <div class="timer"><div class="tfill" id="tfill"></div></div>
     <div class="vs">
       <div class="side"><h4 id="clashLA">A</h4><p id="clashLp"></p></div>
@@ -464,7 +464,7 @@
       <button id="pickL"></button>
       <button id="pickR"></button>
     </div>
-    <div class="timeout-note">6 秒内不站队 = 弃权，全桌都会记住</div>
+    <div class="timeout-note">6 秒内不站队，按弃权计</div>
   </div>
 </div>
 
@@ -504,6 +504,9 @@ const CROWD=[
   "围观群众：已截图发家庭群","围观群众：这波我先站为敬","围观群众：匿名用户投了冒险一票",
   "围观群众：过来人默默路过","围观群众：这存款水位我羡慕了","围观群众：别吵了，让他自己说完",
   "围观群众：理性讨论，别上升家人","围观群众：蹲结局，我押稳","围观群众：看山记得管管场面",
+  "围观群众：楼上冷静点","围观群众：我先笑为敬","围观群众：这不就是我上周的对话吗",
+  "围观群众：作为家里反对的那方，我有话说","围观群众：怎么每一个字都在说我","围观群众：记下了，明天就提离职（不是）",
+  "围观群众：旁边嗑瓜子的问一下结局","围观群众：这桌比我家年夜饭还热闹",
 ];
 function danmu(){
   const el=document.createElement("div");
@@ -927,7 +930,8 @@ async function forgeAndStart(dilemma, consText){
   show(null); showHud(false);
   $("compDilemma").textContent=`「${dilemma}」`;
   $("compiling").classList.add("show");
-  const tips=["拉取真实争议上下文…","孵化四位答主人格…","排列三轮质询与对线冲突点…","推演十二个月命运分岔…"];
+  const short=dilemma.replace(/[，。？！?!,.\s]/g,"").slice(0,8);
+  const tips=[`正在为「${short}」翻真实回答…`,"孵化四位答主人格…","排列三轮质询与对线冲突点…","推演十二个月命运分岔…"];
   let ti=0; $("compilingTip").textContent=tips[0];
   const iv=setInterval(()=>{ ti++; if(ti<tips.length)$("compilingTip").textContent=tips[ti]; },4500);
   let topic=null, live=false;
@@ -1054,7 +1058,9 @@ function applyAndAdvance(fx,logEntry,fbHtml,vtIds){
   for(const [k,label] of [["cash","存款"],["mood","心态"],["opp","机会"],["fam","家人"]]){
     if(fx[k]) parts.push(`<span class="${fx[k]>0?"up":"dn"}">${label} ${fx[k]>0?"+":""}${fx[k]}</span>`);
   }
-  fb.innerHTML=fbHtml+`<div class="fx">${parts.join("")}</div>`;
+  const FBLAB=["全场反应：","桌上的声音：","看山记了一笔："];
+  const fbLab=FBLAB[Math.floor(Math.random()*FBLAB.length)];
+  fb.innerHTML=`<b>${fbLab}</b>${fbHtml}<div class="fx">${parts.join("")}</div>`;
   $("arena").appendChild(fb);
   danmu(); setTimeout(danmu,700);
   updateHud(); fb.scrollIntoView({behavior:"smooth",block:"center"});
@@ -1086,7 +1092,13 @@ async function sendRebuttal(r,ft){
     [...wrap.children].forEach(c=>$("arena").appendChild(c));
     const fxMap={strong:{mood:8,opp:4},partial:{mood:3,opp:1},weak:{mood:-6,opp:-2}};
     const fx=fxMap[d.impact]||fxMap.partial;
-    const impactTxt={strong:"你的回怼击中要害，对面让步了",partial:"有道理，但被抓住了漏洞",weak:"这记回怼被轻松驳回"}[d.impact];
+    const impactPool={
+      strong:["你的回怼击中要害，对面让步了","反对者张了张嘴，最后点了头","这一句把桌子说安静了"],
+      partial:["有道理，但被抓住了漏洞","双方各让半步，天平轻轻晃了一下","话站住了，代价也摆上了桌"],
+      weak:["这记回怼被轻轻放下去了，像放下一杯凉茶","对面笑了笑，没接这句","论证没站住，被一句顶了回来"]
+    };
+    const pool=impactPool[d.impact]||impactPool.partial;
+    const impactTxt=pool[Math.floor(Math.random()*pool.length)];
     applyAndAdvance(fx, "亲口回怼："+text.slice(0,18), `<b>${impactTxt}。</b>${d.summary}`, d.lines.map(l=>l.by));
   }catch(e){
     applyAndAdvance({mood:2}, "试图回怼："+text.slice(0,16),
@@ -1127,7 +1139,7 @@ function resolveClash(side){
   const c=S.topic.clash;
   let fx,text;
   if(side){ fx=side==="L"?c.L.fx:c.R.fx; text=`你站了<b>${side==="L"?c.L.name:c.R.name}</b>。全场安静了一秒，然后有人默默点了个赞。`; }
-  else { fx={mood:-8}; text="6 秒到了，你没有站队。<b>弃权也是一种立场</b>——最贵的那种。"; snd.lose(); }
+  else { fx={mood:-8}; text="6 秒到了，你没有站队。弃权按最保守的一边计。"; snd.lose(); }
   if(side) snd.stamp();
   for(const k of ["cash","mood","opp","fam"]) S.meters[k]=Math.max(0,Math.min(100,S.meters[k]+(fx[k]||0)));
   S.scale+=fx.scale||0;
@@ -1221,7 +1233,7 @@ bindSwipe();
 function openCrisis(){
   snd.alarm();
   $("crisisTitle").textContent="有一条线，已经见底了";
-  $("crisisDesc").textContent="四项里最低的那项，亮了红灯。现实开始收网——你还有最后一次主动权，怎么用？";
+  $("crisisDesc").textContent="四项里最低的那项见底了。往下之前，你还剩一次主动选择。";
   const box=$("crisisOpts"); box.innerHTML="";
   [
     {t:"向家人摊牌，借一笔过桥钱",fx:{cash:+22,fam:-12,mood:+6},log:"危机中向家人摊牌借钱"},
@@ -1265,7 +1277,7 @@ function finishRun(){
     body:JSON.stringify({dilemma:t.q})})
     .then(r=>r.ok?r.json():null)
     .then(d=>{ if(d?.text){
-      zb.innerHTML=`<b style="font-family:var(--sans);font-size:11px;color:var(--amber)">知乎直答 · 基于社区内容的参考口径</b><br>${d.text}`;
+      zb.innerHTML=`<b style="font-family:var(--sans);font-size:11px;color:var(--amber)">知乎直答 · 社区里的主流说法</b><br>${d.text}`;
       zb.style.display="block";
     }}).catch(()=>{});
 }
