@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
           },
         ],
       }),
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(20_000),
     });
     if (!res.ok) {
       const t = await res.text();

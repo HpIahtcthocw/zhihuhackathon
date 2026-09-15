@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
       ? String((body as Record<string, unknown>).model) : undefined;
     let topic: ForgeTopic | null = null;
     let lastErr = "";
-    for (let attempt = 0; attempt < 2; attempt++) { // 最多2次：单次42s×2=84s，卡进 EdgeOne 120s 上限
+    for (let attempt = 0; attempt < (process.env.NETLIFY ? 1 : 2); attempt++) { // Netlify 同步函数30s硬限：单次25s+兜底；本地/EdgeOne 2次×40s
       const feedback = attempt === 0 ? undefined
         : `你上一次的输出存在以下问题：「${lastErr}」。请重新完整输出全部字段的合法 JSON（advisors 恰好4个、rounds 恰好3轮且每轮恰好2个opts、clash、months 恰好4个、endings 四种齐全），不要重犯。`;
       try {

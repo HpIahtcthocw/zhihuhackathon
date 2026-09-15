@@ -60,7 +60,7 @@ async function dashscope(
         { role: "user", content: user },
       ],
     }),
-    signal: AbortSignal.timeout(40_000), // 单次40s：2次尝试+兜底，卡进 EdgeOne 120s
+    signal: AbortSignal.timeout(process.env.NETLIFY ? 18_000 : 40_000), // Netlify 同步函数实测30s硬限：18s LLM + 兜底/冷启动余量；本地/EdgeOne 放宽到40s
   });
   if (!res.ok) {
     const body = await res.text();
