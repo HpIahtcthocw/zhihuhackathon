@@ -1,0 +1,18 @@
+【知乎黑客松 2026 · 岔路口·知乎围炉】提交链接（2026-09-15 更新）
+
+═══════════════════════════════════════
+✅ 提交链接（Netlify 长期有效，免备案、国内可直连，评审期可用）
+https://zhihuhackathon.netlify.app
+   - 根路径 200，主页面 /game/index.html 200
+   - API /api/hot 200（知乎真实热榜数据）
+   - 长期有效，无需 token，无需刷新
+═══════════════════════════════════════
+
+🔒 EdgeOne 保底链接（token 约 3 小时过期，需手动刷新）
+https://zhihuhackathon-ehaqkh9d.edgeone.cool/
+   - 如需使用：普通对话中让助手打开腾讯云控制台域管页获取新 token
+   - 自动刷新定时任务已于 2026-09-15 停用（环境无浏览器无法刷新，且 Netlify 已替代）
+
+📦 其他提交材料
+- 代码仓库：https://github.com/HpIahtcthocw/zhihuhackathon
+- 产品说明计划书：E:\gitproject\hackathon\crossroad\docs\产品说明计划书.md

@@ -351,6 +351,32 @@
   .fate-card .back{display:block;text-align:center;margin-top:14px;font-size:12px;color:var(--ink-3);
     background:none;border:none;width:100%}
   .fate-card .back:hover{color:var(--ink-2)}
+  .fate-card .backrow{display:flex;gap:14px;justify-content:center;margin-top:4px}
+  .fate-card .backrow .back{width:auto}
+
+  /* 命运簿：多局沉淀 */
+  .hist{position:fixed;inset:0;background:rgba(33,29,22,.6);z-index:125;display:none;
+    align-items:center;justify-content:center;padding:16px}
+  .hist.open{display:flex;animation:fadeIn .25s ease}
+  .hist-card{background:var(--card);border-radius:18px;max-width:480px;width:100%;
+    padding:22px;max-height:82vh;display:flex;flex-direction:column;
+    box-shadow:0 24px 80px rgba(0,0,0,.4)}
+  .hist-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .hist-head span{font-family:var(--serif);font-size:17px;font-weight:700}
+  .hist-head button{background:none;border:none;font-size:22px;color:var(--ink-3);cursor:pointer;line-height:1}
+  .hist-head button:hover{color:var(--ink)}
+  .hist-list{overflow:auto;flex:1;min-height:0}
+  .hist-item{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;margin-bottom:10px;
+    background:var(--paper);transition:transform .15s}
+  .hist-item:hover{transform:translateY(-1px);border-color:var(--line)}
+  .hist-item .hi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
+  .hist-item .hi-top b{font-family:var(--serif);font-size:14px;color:var(--red)}
+  .hist-item .hi-top span{font-family:var(--mono);font-size:10px;color:var(--ink-3);white-space:nowrap;
+    background:rgba(49,91,115,.08);border-radius:20px;padding:2px 10px}
+  .hist-item .hi-q{font-family:var(--serif);font-size:12px;color:var(--ink-2);line-height:1.7;margin-bottom:6px}
+  .hist-item .hi-ts{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+  .hist-empty{font-family:var(--serif);font-size:13px;color:var(--ink-3);text-align:center;padding:40px 0}
+  .hist-note{margin-top:12px;font-size:11px;color:var(--ink-3);text-align:center}
 
   /* 编译中 */
   .compiling{text-align:center;padding:70px 0;display:none}
@@ -520,9 +546,22 @@
     <div class="quote" id="zhidaBox" style="display:none;background:rgba(182,132,61,.08);border-left-color:var(--amber)"></div>
     <div class="btns">
       <button class="again" id="againBtn">换个困境再来</button>
+      <button class="copy" id="copyBtn">复制命运文案</button>
       <button class="copy" id="imgBtn">保存分享图</button>
     </div>
-    <button class="back" id="backBtn">回到知乎热榜</button>
+    <div class="backrow">
+      <button class="back" id="histBtn">📖 我的命运簿（<span id="histCount">0</span> 局）</button>
+      <button class="back" id="backBtn">回到知乎热榜</button>
+    </div>
+  </div>
+</div>
+
+<!-- 命运簿：多局沉淀 · 重来对比 -->
+<div class="hist" id="histPanel">
+  <div class="hist-card">
+    <div class="hist-head"><span>📖 我的命运簿</span><button id="histClose" aria-label="关闭">×</button></div>
+    <div class="hist-list" id="histList"></div>
+    <div class="hist-note" id="histNote"></div>
   </div>
 </div>
 
@@ -549,7 +588,9 @@ function danmu(){
 function hostSay(text){
   const d=document.createElement("div");
   d.className="host";
-  d.innerHTML=`<img src="/game/ip/idle.gif" alt="" style="width:26px;height:26px;vertical-align:-8px;margin-right:6px">${text}`;
+  const img=document.createElement("img"); img.src="/game/ip/idle.gif"; img.alt="";
+  img.style.cssText="width:26px;height:26px;vertical-align:-8px;margin-right:6px";
+  d.appendChild(img); d.appendChild(document.createTextNode(text));
   return d;
 }
 
@@ -731,9 +772,10 @@ const TOPICS={
 
 /* 自定义话题模板 */
 function makeCustomTopic(text){
-  const t=text.trim().slice(0,40);
+  const rawQ=text.trim().slice(0,40);
+  const t=esc(rawQ);
   return {
-    hot:"自定义困境",q:t,heat:"—",follows:"—",views:"—",
+    hot:"自定义困境",q:rawQ,heat:"—",follows:"—",views:"—",
     desc:"你的真实处境：存款、时间窗、退路已登记。四位答主正在围绕你的困境列队（原型为模板预演，正式版由直答 Agent 从真实知乎讨论实时编译）。",
     src:"",srcTag:"正式版：直答 Agent 实时编译",
     advisors:[
@@ -802,6 +844,7 @@ const S={
   crisisUsed:false, clashPick:null, lastChoice:{},
 };
 const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const screens=["screen-hot","screen-setup","screen-hearth","screen-run"];
 function show(id){ screens.forEach(s=>$(s).classList.add("hide")); if(id)$(id).classList.remove("hide"); window.scrollTo(0,0); }
 function showHud(v){ $("hud").classList.toggle("hide",!v); }
@@ -826,7 +869,7 @@ async function loadHot(force){
   items.forEach(it=>{
     const cat=it.cat||"自我成长";
     cards.push({title:it.title, isHot:!!it.isHot, src:"live", cat, meta:it, onClick:()=>pickDilemma(it.title),
-      tag:`${badge(cat)}${it.metrics||it.heat} · 实时 · 点击围炉此困境`});
+      tag:`${badge(cat)}${esc(it.metrics||it.heat||"")} · 实时 · 点击围炉此困境`});
   });
   // 离线补足：先精编剧本（coder/quit），再补跨类别通用议题，保证离线也有类型多样
   const offPool=[{t:TOPICS.coder,cat:"事业"},{t:TOPICS.quit,cat:"事业"},
@@ -844,7 +887,7 @@ async function loadHot(force){
     cards.push({title, isHot:true, src:"off", cat:sp.cat||"事业",
       meta:{title,isHot:true,votes:10000,_topic:topic},
       onClick:()=>startScripted(topic),
-      tag:`${badge(sp.cat||"事业")}${topic.heat&&topic.heat!=="—"?" "+topic.heat+" 热度":""} · 离线 · 历史抓取`});
+      tag:`${badge(sp.cat||"事业")}${topic.heat&&topic.heat!=="—"?" "+esc(topic.heat)+" 热度":""} · 离线 · 历史抓取`});
   });
   box.innerHTML="";
   if(!cards.length){
@@ -857,7 +900,7 @@ async function loadHot(force){
     d.className="hot-item";
     d.dataset.cmd="pick";
     d.innerHTML=`<div class="rank r${Math.min(i+1,3)}">${i+1}</div>
-      <div><div class="t">${c.title}</div>
+      <div><div class="t">${esc(c.title)}</div>
       <div class="meta">${c.tag}</div></div>`;
     d.addEventListener("click",()=>{ snd.tick(); c.onClick(); });
     box.appendChild(d);
@@ -883,8 +926,8 @@ function fillHotSelect(items,onPick){
     return (ia<0?99:ia)-(ib<0?99:ib);
   });
   sel.innerHTML=`<option value="">从知乎热榜下拉选择议题 ⬇</option>`+
-    keys.map(cat=>`<optgroup label="${cat}">${groups[cat].map(c=>
-      `<option value="${items.indexOf(c)}">${c.src==="live"?"🔥 ":"📄 "}${c.title}</option>`).join("")}</optgroup>`).join("");
+    keys.map(cat=>`<optgroup label="${esc(cat)}">${groups[cat].map(c=>
+      `<option value="${items.indexOf(c)}">${c.src==="live"?"🔥 ":"📄 "}${esc(c.title)}</option>`).join("")}</optgroup>`).join("");
   sel.onchange=()=>{
     const i=sel.value===""?-1:+sel.value;
     if(i>=0 && items[i]){ snd.tick(); onPick(i); sel.value=""; }
@@ -966,12 +1009,19 @@ function renderConstraints(groups){
       b.addEventListener("click",()=>{
         seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
         b.classList.add("on"); consChoice[gi]=oi; snd.tick();
+        // 同步到 S.cons：约束选择需随请求传给编译服务
+        if(g.key==="save"||g.key==="time"||g.key==="back") S.cons[g.key]=o.v;
       });
       seg.appendChild(b);
     });
     div.appendChild(seg); box.appendChild(div);
   });
   groups.forEach((g,gi)=>{ consChoice[gi]=Math.min(1,(g.options?.length||3)-1); });
+  groups.forEach((g,gi)=>{
+    if(g.key==="save"||g.key==="time"||g.key==="back"){
+      const o=(g.options||[])[consChoice[gi]]; if(o?.v) S.cons[g.key]=o.v;
+    }
+  });
 }
 async function prepareConstraints(dilemma){
   $("cgroups").innerHTML=`<div class="cgroup"><div class="gl">看山正在翻你的档案…</div></div>`;
@@ -1069,7 +1119,7 @@ function renderHearth(){
     const d=document.createElement("div");
     d.className="acard"; d.style.animationDelay=(i*0.12)+"s";
     const voteLabel = t.aiCompiled ? "现场人气" : "赞同 · 该回答";
-    const footSrc = t.aiCompiled ? "※ AI 实时编译 · 观点人格" : (t.src?"⧉ 来源可回链":"※ 原型模板");
+    const footSrc = t.aiCompiled ? "※ AI 实时编译 · 观点人格" : (t.src?`<a href="${t.src.replace(/["'<>]/g,"")}" target="_blank" rel="noopener noreferrer">⧉ 来源可回链</a>`:"※ 原型模板");
     d.innerHTML=`<div class="ahd">
         <div class="ava" style="background:${a.color}">${a.ch}</div>
         <div><div class="an">${a.name}</div><div class="ab">${a.bio}</div></div>
@@ -1191,9 +1241,9 @@ async function sendRebuttal(r,ft){
     };
     const pool=impactPool[d.impact]||impactPool.partial;
     const impactTxt=pool[Math.floor(Math.random()*pool.length)];
-    applyAndAdvance(fx, "亲口回怼："+text.slice(0,18), `<b>${impactTxt}。</b>${d.summary}`, d.lines.map(l=>l.by));
+    applyAndAdvance(fx, "亲口回怼："+esc(text.slice(0,18)), `<b>${impactTxt}。</b>${d.summary}`, d.lines.map(l=>l.by));
   }catch(e){
-    applyAndAdvance({mood:2}, "试图回怼："+text.slice(0,16),
+    applyAndAdvance({mood:2}, "试图回怼："+esc(text.slice(0,16)),
       `<b>答主们一时语塞。</b>（网络抖动，这句回怼不计入战况）`, []);
   }
 }
@@ -1306,8 +1356,9 @@ function commitSwipe(side){
   for(const k of ["cash","mood","opp","fam"]) S.meters[k]=Math.max(0,Math.min(100,S.meters[k]+(o.fx[k]||0)));
   S.log.push(o.log);
   let delayedHtml="";
-  if(m.R.delay && m.R.log===o.log && side==="R"){ delayedHtml=`<div class="delayed">${m.R.delay}</div>`;
-    S.meters.mood=Math.max(0,S.meters.mood-10); S.log.push("延迟后果引爆："+m.R.delay.slice(0,18)+"…"); }
+  const mm = side==="R" ? m.R : m.L; // o 与 mm 同源（o=side==="R"?m.R:m.L）
+  if(mm.delay && mm.log===o.log){ delayedHtml=`<div class="delayed">${mm.delay}</div>`;
+    S.meters.mood=Math.max(0,S.meters.mood-10); S.log.push("延迟后果引爆："+mm.delay.slice(0,18)+"…"); }
   const toast=$("runToast");
   toast.innerHTML=`<b>${m.m} 结算：</b>你选择了「${o.t.replace(/[←→]/g,"").trim()}」${delayedHtml}`;
   toast.classList.add("show");
@@ -1361,6 +1412,11 @@ function finishRun(){
   $("fate").classList.add("open");
   S.fateTitle=e.t;
   recordFate(e.t);
+  // 多局沉淀：写入命运簿（最多 20 局）
+  { const hist=loadHist();
+    hist.unshift({ts:Date.now(), q:(t.q||"").slice(0,46), fate:e.t, scale:S.scale, aiCompiled:!!t.aiCompiled, min});
+    saveHist(hist);
+    $("histCount").textContent=hist.length; }
   { const g=gallery(); $("fateGalleryTag").textContent=`🖼 命运图鉴：已收集 ${Object.keys(g).length} 种命运 · 本局称号${g[e.t]>1?"是第 "+g[e.t]+" 次抽中":"首次解锁"}`; }
   // 知乎直答 · 官方参考口径（失败静默隐藏）
   const zb=$("zhidaBox");
@@ -1417,7 +1473,7 @@ $("imgBtn").addEventListener("click",()=>{
   ctx.fillStyle="#315b73"; ctx.font="600 17px "+SERIF; ctx.textAlign="center";
   ctx.fillText("“能走到这里的你，就有能力承担接下来的每一种选择。”",375,928);
   ctx.fillStyle="#9b9284"; ctx.font="400 14px "+SANS; ctx.textAlign="center";
-  ctx.fillText("知乎黑客松 · 跨次元游乐场 | 你的困境，会是什么命运？",375,965);
+  ctx.fillText(S.topic.aiCompiled ? "知乎黑客松 · AI 实时编译 · 观点人格" : "知乎黑客松 · 离线快照 · 历史数据",375,965);
   const a=document.createElement("a");
   a.download="岔路口-命运卡.png"; a.href=cv.toDataURL("image/png"); a.click();
   $("imgBtn").textContent="已生成 ✓";
@@ -1437,6 +1493,58 @@ function recordFate(title){
   try{ localStorage.setItem("fateGallery",JSON.stringify(g)); }catch(e){}
   renderGallery();
 }
+/* ── 命运簿：多局沉淀 + 重来对比 ── */
+function loadHist(){ try{ return JSON.parse(localStorage.getItem("crossroad_hist")||"[]"); }catch(e){ return []; } }
+function saveHist(h){ try{ localStorage.setItem("crossroad_hist",JSON.stringify(h.slice(0,20))); }catch(e){} }
+function renderHistCount(){
+  const el=$("histCount"); if(el) el.textContent=loadHist().length;
+}
+function openHist(){
+  const h=loadHist(); const list=$("histList");
+  if(!h.length){
+    list.innerHTML=`<div class="hist-empty">还没有存档的围炉。<br>玩完一局后会自动收进命运簿，看看你在不同岔路口的选择轨迹。</div>`;
+  }else{
+    list.innerHTML=h.map((r,i)=>{
+      const d=new Date(r.ts);
+      const tag=r.scale<-8?"冒险型":r.scale>8?"稳妥型":"均衡型";
+      const pad=n=>String(n).padStart(2,"0");
+      return `<div class="hist-item">
+        <div class="hi-top"><b>「${esc(r.fate||"??")}」</b><span>${tag} · ${r.aiCompiled?"AI 编译":"离线快照"}</span></div>
+        <div class="hi-q">${esc(r.q)}</div>
+        <div class="hi-ts">第 ${h.length-i} 局 · ${d.getMonth()+1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}</div>
+      </div>`;
+    }).join("");
+  }
+  $("histNote").textContent = h.length
+    ? `共 ${h.length} 局 · 倾向按命运拨盘（${h.filter(x=>x.scale<-8).length} 冒险 / ${h.filter(x=>x.scale>8).length} 稳妥）`
+    : "同一道困境，换一个选择，可能就是另一种命运。";
+  $("histPanel").classList.add("open");
+}
+$("histBtn").addEventListener("click",openHist);
+$("histClose").addEventListener("click",()=>$("histPanel").classList.remove("open"));
+$("histPanel").addEventListener("click",e=>{ if(e.target===$("histPanel")) $("histPanel").classList.remove("open"); });
+renderHistCount();
+
+/* ── 复制命运文案：合规的一键发布闭环（知乎开放平台不提供发布 API，复制后自行粘贴） ── */
+$("copyBtn").addEventListener("click",async()=>{
+  const t=S.topic, verdict=$("fateVerdict").textContent, quote=$("fateQuote").textContent;
+  const logs=S.log.slice(0,5).map(l=>"· "+l).join("\n");
+  const zh=$("zhidaBox").textContent.trim();
+  const txt=`【岔路口·知乎围炉】我把「${t.q||""}」推演了一遍——一年后的命运是「${S.fateTitle}」。\n\n${verdict}\n\n这一年的关键选择：\n${logs}\n\n${quote}${zh?("\n\n知乎直答口径："+zh.slice(0,120)):""}\n\n—— 议题取自知乎热榜 · 观点由 AI 编译（观点人格，非真人）\n来围炉：https://zhihuhackathon.netlify.app`;
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){
+    const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;left:-9999px";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); }catch(_){}
+    ta.remove();
+  }
+  const b=$("copyBtn"); b.textContent="已复制 ✓";
+  const el=document.createElement("div");
+  el.style.cssText="position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:130;background:#315b73;color:#fff;font-size:12.5px;padding:10px 20px;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.25)";
+  el.textContent="命运文案已复制 · 去知乎「发想法」粘贴发布吧";
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.remove(); b.textContent="复制命运文案"; },2600);
+});
 function luckyDraw(){
   const cards=[...document.querySelectorAll("#hotList .hot-item")].filter(el=>el.dataset.cmd==="pick");
   if(!cards.length) return;
@@ -1473,6 +1581,16 @@ loadHot();
     el.textContent="知乎登录配置中，敬请期待";
     document.body.appendChild(el); setTimeout(()=>el.remove(),2600);
   }
+  // 会话保持：已登录（HttpOnly cookie）则直接展示昵称，刷新不掉线
+  try{
+    const me=await fetch("/api/auth/me").then(r=>r.ok?r.json():null);
+    if(me?.ok && me.name){
+      $("loginBtn").style.display="inline-block";
+      $("loginBtn").textContent="知乎 · "+me.name;
+      $("loginBtn").disabled=true;
+      return;
+    }
+  }catch(e){}
   // 凭证已配置才显示登录按钮
   try{
     const r=await fetch("/api/auth/zhihu",{redirect:"manual"});
@@ -1481,7 +1599,7 @@ loadHot();
       if(!loc.includes("oauth=unconfigured")){
         $("loginBtn").style.display="inline-block";
         const saved=localStorage.getItem("zhName");
-        if(saved&&welcome){ $("loginBtn").textContent=saved; $("loginBtn").disabled=true; }
+        if(saved){ $("loginBtn").textContent=saved; $("loginBtn").disabled=true; }
       }
     }
   }catch(e){}

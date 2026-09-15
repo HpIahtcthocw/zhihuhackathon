@@ -1,0 +1,9 @@
+﻿岔路口·知乎围炉 - 可运行演示链接（token 3小时有效，失效后需刷新）
+
+https://zhihuhackathon-ehaqkh9d.edgeone.cool/?eo_token=4f2738b9ecb2e90efc7d506abc2595c2&eo_time=1789402626
+
+说明：
+- 该链接为 EdgeOne 默认域名 + 临时 token，token 3 小时后失效
+- 失效后请联系 AI 刷新最新 token
+- 游戏完整流程已验证：选择议题 → 安慰卡 → 三组约束 → 入席 → 四位答主围炉质询(3轮)
+- 热榜数据：知乎开放平台 ZHIHU_SEARCH 实时同步（当前临时限频，恢复后自动生效，页面有离线兜底不 502）

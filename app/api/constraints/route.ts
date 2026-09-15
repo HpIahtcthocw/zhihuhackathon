@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
-import { completeFast, extractJSON } from "@/lib/llm";
+import { completeFast, extractJSON, safeHtml } from "@/lib/llm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,16 +39,16 @@ function validate(raw: unknown): Constraint[] {
   if (!Array.isArray(o.constraints)) throw new Error("缺少 constraints");
   const out = o.constraints.slice(0, 3).map((c, i) => {
     const options = (c?.options ?? []).slice(0, 3).map((op, j) => ({
-      v: String(op?.v ?? `o${j}`).slice(0, 16),
-      label: String(op?.label ?? `选项${j + 1}`).slice(0, 10),
-      desc: String(op?.desc ?? "").slice(0, 18),
+      v: safeHtml(String(op?.v ?? `o${j}`).slice(0, 16)),
+      label: safeHtml(String(op?.label ?? `选项${j + 1}`).slice(0, 10)),
+      desc: safeHtml(String(op?.desc ?? "").slice(0, 18)),
       fx: clampFx(op?.fx),
     }));
     if (options.length < 2) throw new Error(`维度${i + 1}选项不足`);
     return {
-      key: String(c?.key ?? `dim${i + 1}`).slice(0, 16),
-      label: String(c?.label ?? `维度${i + 1}`).slice(0, 8),
-      question: String(c?.question ?? "").slice(0, 30),
+      key: safeHtml(String(c?.key ?? `dim${i + 1}`).slice(0, 16)),
+      label: safeHtml(String(c?.label ?? `维度${i + 1}`).slice(0, 8)),
+      question: safeHtml(String(c?.question ?? "").slice(0, 30)),
       options,
     };
   });

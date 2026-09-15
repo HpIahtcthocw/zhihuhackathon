@@ -1,4 +1,4 @@
-﻿import { extractJSON } from "./extract";
+﻿import { extractJSON, safeHtml } from "./extract";
 
 /* LLM 通道：DashScope（OpenAI 兼容协议）。
    forge 用质量模型（CROSSROAD_MODEL），rebuttal 用快速模型（CROSSROAD_MODEL_FAST）。 */
@@ -7,7 +7,7 @@ const MODEL =
 const MODEL_FAST =
   process.env.CROSSROAD_MODEL_FAST || process.env.LORE_MODEL_FAST || "qwen3.8-flash";
 
-export { extractJSON };
+export { extractJSON, safeHtml };
 
 export async function complete(
   system: string,

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
-import { completeFast, extractJSON } from "@/lib/llm";
+import { completeFast, extractJSON, safeHtml } from "@/lib/llm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,10 +51,10 @@ function validate(raw: unknown, input: Input): Output {
   const lines = o.lines
     .slice(0, 3)
     .filter((l) => l?.by && ids.has(String(l.by)) && typeof l.text === "string" && l.text.trim())
-    .map((l) => ({ by: String(l.by), text: l.text.trim().slice(0, 160) }));
+    .map((l) => ({ by: String(l.by), text: safeHtml(l.text.trim().slice(0, 160)) }));
   if (lines.length < 2) throw new Error("有效回应不足 2 条");
   const impact = o.impact === "strong" || o.impact === "partial" ? o.impact : "weak";
-  return { lines, impact, summary: typeof o.summary === "string" && o.summary.trim() ? o.summary.trim().slice(0, 60) : "全场安静了一瞬。" };
+  return { lines, impact, summary: typeof o.summary === "string" && o.summary.trim() ? safeHtml(o.summary.trim().slice(0, 60)) : "全场安静了一瞬。" };
 }
 
 /* 交锋质量 → 确定性数值（LLM 不直接决定数值） */

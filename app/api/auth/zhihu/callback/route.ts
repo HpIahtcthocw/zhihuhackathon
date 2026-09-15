@@ -3,7 +3,9 @@ import { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* 知乎 OAuth 回调：校验 state → 换 access_token → 读用户基础信息 → 会话 cookie → 回游戏页 */
+/* 知乎 OAuth 回调：校验 state → 换 access_token → 读用户基础信息 → 会话 cookie → 回游戏页。
+   预留能力：app_id/app_key 需邮件 product-platform@zhihu.com 申请（官方 OAuth 接入文档），
+   未配置时前端不显示登录入口，本回调不会实际被调用。 */
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;

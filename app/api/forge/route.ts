@@ -1,6 +1,6 @@
 ﻿import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
-import { complete, extractJSON } from "@/lib/llm";
+import { complete, extractJSON, safeHtml } from "@/lib/llm";
 import { makeFallback } from "@/lib/fallback";
 
 export const runtime = "nodejs";
@@ -123,8 +123,10 @@ function clampFx(fx: unknown): Fx {
     fam: num(o.fam, -12, 10),
   };
 }
-const str = (v: unknown, fb: string, cap = 300) =>
-  typeof v === "string" && v.trim() ? v.trim().slice(0, cap) : fb;
+const str = (v: unknown, fb: string, cap = 300) => {
+  const s = typeof v === "string" && v.trim() ? v.trim().slice(0, cap) : fb;
+  return safeHtml(s);
+};
 
 function validate(raw: unknown, input: ForgeInput): ForgeTopic {
   const o = raw as Partial<ForgeTopic>;
@@ -178,13 +180,13 @@ function validate(raw: unknown, input: ForgeInput): ForgeTopic {
       t: str(m?.L?.t, "稳妥应对", 20),
       fx: clampFx(m?.L?.fx),
       log: str(m?.L?.log, "做了稳妥的选择", 24),
-      ...(typeof m?.L?.delay === "string" && m.L.delay.trim() ? { delay: m.L.delay.trim().slice(0, 80) } : {}),
+      ...(typeof m?.L?.delay === "string" && m.L.delay.trim() ? { delay: safeHtml(m.L.delay.trim().slice(0, 80)) } : {}),
     },
     R: {
       t: str(m?.R?.t, "放手一搏", 20),
       fx: clampFx(m?.R?.fx),
       log: str(m?.R?.log, "选择了冒险", 24),
-      ...(typeof m?.R?.delay === "string" && m.R.delay.trim() ? { delay: m.R.delay.trim().slice(0, 80) } : {}),
+      ...(typeof m?.R?.delay === "string" && m.R.delay.trim() ? { delay: safeHtml(m.R.delay.trim().slice(0, 80)) } : {}),
     },
   }));
 

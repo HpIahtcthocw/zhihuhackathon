@@ -1,3 +1,16 @@
+/** 白名单 HTML 清洗：仅保留 <b> <br>（围炉加粗/换行是设计特性），其余标签一律转义。
+    防止 LLM 输出回显玩家输入时注入 <script>/<img onerror> 等恶意 HTML。 */
+export function safeHtml(s: string): string {
+  return s
+    .replace(/<br\s*\/?>/gi, "\u0001BR\u0001")
+    .replace(/<b>/gi, "\u0001B\u0001")
+    .replace(/<\/b>/gi, "\u0001/B\u0001")
+    .replace(/[<>]/g, (c) => (c === "<" ? "&lt;" : "&gt;"))
+    .replace(/\u0001BR\u0001/g, "<br>")
+    .replace(/\u0001B\u0001/g, "<b>")
+    .replace(/\u0001\/B\u0001/g, "</b>");
+}
+
 /** 提取 JSON —— 容忍模型夹带解释文字或 ```json 围栏 */
 export function extractJSON(raw: string): unknown {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);

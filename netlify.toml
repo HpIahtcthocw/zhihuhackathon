@@ -1,0 +1,8 @@
+﻿[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Next.js 在 Netlify 上自动使用 Next Runtime（@netlify/plugin-nextjs），无需额外插件

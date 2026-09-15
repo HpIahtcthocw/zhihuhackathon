@@ -4,9 +4,10 @@ import { randomBytes } from "node:crypto";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* 知乎 OAuth 登录：发起授权。
-   凭证来自赛事页面（创建项目后分配），配置以下环境变量后启用：
-   ZHIHU_OAUTH_APP_ID / ZHIHU_OAUTH_APP_KEY / ZHIHU_OAUTH_REDIRECT_URI(可选，默认派生自请求来源) */
+/* 知乎 OAuth 登录：发起授权（预留能力）。
+   注意：知乎开放平台的 app_id / app_key 不开放自助申请，需邮件 product-platform@zhihu.com
+   申请（OAuth 接入文档 + 授权范围）。未配置凭证时本路由 302 到 ?oauth=unconfigured，
+   前端保持登录按钮隐藏，不影响主流程。 */
 
 export async function GET(req: NextRequest) {
   const appId = process.env.ZHIHU_OAUTH_APP_ID;
